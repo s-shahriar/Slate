@@ -119,9 +119,10 @@ async function equations() {
     import cn from '${IQ}/src/data/equation/computer_network.js'
     import os from '${IQ}/src/data/equation/operating_system.js'
     import tc from '${IQ}/src/data/equation/telecommunication.js'
+    import dsa from '${IQ}/src/data/equation/dsa.js'
     import { uidFor } from '${IQ}/src/lib/qid.js'
     const hl = () => undefined
-    const topics = { computer_network: cn, operating_system: os, telecommunication: tc }
+    const topics = { computer_network: cn, operating_system: os, telecommunication: tc, dsa }
     function Group({ g, i, topic }) {
       const Diagram = DIAGRAMS[g.diagram]
       return (
