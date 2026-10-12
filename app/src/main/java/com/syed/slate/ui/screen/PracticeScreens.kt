@@ -38,6 +38,7 @@ import com.syed.slate.ui.component.BarTitle
 import com.syed.slate.ui.component.SlateTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -219,23 +220,67 @@ private fun CommandsPanel(cat: Category, topic: Topic, flags: Map<String, Flag>,
     }
 }
 
-/** Every practice item you marked Important, across Linux and SQL, as one drill. */
+/**
+ * Every practice item you marked Important (or only the Weak ones), across Linux and SQL or just one of them, as one
+ * drill. Web parity with PracticeImportantScreen/Run: the Important/Weak switch and a "কোনটা practice করবে" scope row
+ * (সব / Linux / SQL, counts follow the switch). Changing either restarts the drill on the new selection.
+ */
 @Composable
 fun PracticeImportantScreen(vm: SlateViewModel, onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as SlateApp
     val m = vm.module(ModuleId.ICT)
+    val p = LocalPalette.current
     val flags by m.progress.flags.collectAsState()
     val blobVer by app.module(ModuleId.ICT).blobs.version.collectAsState()
-    val all = remember(blobVer) { app.practice.flatMap { c -> c.topics.flatMap { t -> Practice.drillableFor(c, t, tag = true) } } }
+    val categories = remember(blobVer) { app.practice }
+    // Each drill with its category id, so the run can be limited to one category.
+    val all = remember(blobVer) { categories.flatMap { c -> c.topics.flatMap { t -> Practice.drillableFor(c, t, tag = true).map { c.id to it } } } }
+    var weakOnly by rememberSaveable { mutableStateOf(false) }
+    var scope by rememberSaveable { mutableStateOf("all") }
+    val set = if (weakOnly) PoolSet.WEAK else PoolSet.IMPORTANT
+    fun count(s: PoolSet, cat: String?) = all.count { (cid, d) -> (cat == null || cid == cat) && QuizPool.matches(s, flags[d.id]) }
+    // Only categories with marked items in the current set are offered; a scope that empties falls back to all.
+    val scopes = categories.filter { count(set, it.id) > 0 }
+    val runScope = if (scopes.any { it.id == scope }) scope else "all"
     // Items un-marked mid-drill drop out of the list, as on the web.
-    val drills = all.filter { QuizPool.matches(PoolSet.IMPORTANT, flags[it.id]) }
+    val drills = all.filter { (cid, d) -> (runScope == "all" || cid == runScope) && QuizPool.matches(set, flags[d.id]) }.map { it.second }
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
             Text("Important · Practice", style = MaterialTheme.typography.titleLarge)
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-            CommandPractice(drills, flags, m.progress, showFilter = false)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ScopeChip("সব Important (${count(PoolSet.IMPORTANT, null)})", !weakOnly, p.imp) { weakOnly = false }
+                ScopeChip("শুধু Weak (${count(PoolSet.WEAK, null)})", weakOnly, p.warn) { weakOnly = true }
+            }
+            Text("কোনটা practice করবে", style = MaterialTheme.typography.labelMedium, color = p.text3)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ScopeChip("সব (${count(set, null)})", runScope == "all", MaterialTheme.colorScheme.primary) { scope = "all" }
+                scopes.forEach { c -> ScopeChip("${c.name} (${count(set, c.id)})", runScope == c.id, MaterialTheme.colorScheme.primary) { scope = c.id } }
+            }
+            if (drills.isEmpty()) {
+                Text(
+                    if (weakOnly) "এখনো কোনো Weak practice নেই।" else "কোনো important practice নেই — Practice বা Commands tab-এ 🔖 দিয়ে যোগ করো।",
+                    Modifier.padding(top = 24.dp), style = MaterialTheme.typography.bodyMedium, color = p.text2,
+                )
+            } else key(runScope, weakOnly) {
+                CommandPractice(drills, flags, m.progress, showFilter = false)
+            }
         }
     }
+}
+
+/** A selectable pill for the Important/Weak switch and the category scope. */
+@Composable
+private fun ScopeChip(label: String, selected: Boolean, color: Color, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Text(
+        label,
+        Modifier.clip(RoundedCornerShape(50)).background(if (selected) color.copy(alpha = .16f) else Color.Transparent)
+            .border(BorderStroke(1.dp, if (selected) color else p.outline), RoundedCornerShape(50))
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.labelLarge, color = if (selected) color else p.text2,
+        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+    )
 }
