@@ -3,12 +3,15 @@ package com.syed.slate.ui.quiz
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -30,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +42,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.syed.slate.ModuleServices
@@ -62,6 +70,11 @@ import kotlinx.coroutines.delay
  * steps back through the questions already answered as a read-only review: the answer given stays, but the
  * flag bar (Nail / Important / Weak / Note / Delete) and highlights still work. Next lights up once the current
  * question is answered.
+ *
+ * Thumb layout: while a question is unanswered it sits at the bottom of the page, right above that bar, so the
+ * thumb travels little between an option and Next. The gap above it is measured then and frozen once answered,
+ * so the options stay put while the flag bar and explanation grow underneath; a short scroll brings those into
+ * view without pushing the options off the top. A question reopened through Prev lays out from the top.
  */
 @Composable
 fun QuizSession(
@@ -145,43 +158,83 @@ fun QuizSession(
             }
             LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth(), trackColor = p.outline)
         }
-        // Every question (forward or back) opens at the top: Next is tapped from the end of the explanation, so a
-        // long question would otherwise come in part-way down.
+        // Every question (forward or back) opens at the top of its scroll range.
         val scroll = rememberScrollState()
         LaunchedEffect(idx) { scroll.scrollTo(0) }
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            if (showTopicTag) topicName(q)?.let {
-                Text(it, Modifier.clip(MaterialTheme.shapes.small).background(p.primaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium, color = p.onPrimaryContainer)
+        val density = LocalDensity.current
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val viewport = constraints.maxHeight
+            val pad = with(density) { 32.dp.roundToPx() } // the scroll column's top + bottom padding
+            val padTop = with(density) { 16.dp.toPx() }
+            var lead by remember(q.id) { mutableIntStateOf(0) }           // gap above the question while unanswered
+            var answeredHere by remember(q.id) { mutableStateOf(false) }  // answered on this visit (not a Prev review)
+            var optionsTop by remember(q.id) { mutableFloatStateOf(0f) }  // scroll-content y of the options
+            var shownTop by remember(q.id) { mutableStateOf<Float?>(null) } // scroll-content y of the flag bar
+            var autoScrolled by remember(q.id) { mutableStateOf(false) }
+            LaunchedEffect(answeredHere, shownTop) {
+                val top = shownTop ?: return@LaunchedEffect
+                if (!answeredHere || autoScrolled) return@LaunchedEffect
+                autoScrolled = true
+                // Land the flag bar about 40% down the page (the explanation starts just under it), but never
+                // scroll the options' top out of view.
+                val target = (top - viewport * 0.4f).coerceAtMost(optionsTop - with(density) { 8.dp.toPx() }).coerceAtLeast(0f)
+                if (target > scroll.value) scroll.animateScrollTo(target.toInt())
             }
-            QuestionBody(module, q)
-            val correct = q.correctAnswer
-            q.optionList().forEach { (letter, text) ->
-                val state = when {
-                    !revealed -> OptState.IDLE
-                    letter == correct -> OptState.CORRECT
-                    letter == selected -> OptState.WRONG
-                    else -> OptState.DIM
-                }
-                OptionRow(module, letter, text, state, enabled = !revealed) { answers = answers + (q.id to letter) }
-            }
-            if (revealed) {
-                if (uid != null) FlagBar(flags[uid] ?: Flag(), uid, services.progress, labels = true, itemId = q.id, onDeleted = {
-                    // Deleting mid-run takes the question out: its point (if any) goes with it, and the next question
-                    // slides into this position. Nothing is skipped, the result counts only what is left, and once
-                    // nothing unanswered remains the result shows.
-                    val rest = deck.filter { it.id != q.id }
-                    removed = removed + q.id
-                    if (rest.isEmpty()) done = true
-                    else {
-                        if (idx >= rest.size) idx = rest.size - 1
-                        if (rest.all { it.id in answers }) done = true
+            Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp)) {
+                // Unanswered: the question group is bottom-aligned in a viewport-high box. Answered here: the same
+                // gap, now a fixed spacer, so nothing moves when the explanation appears below.
+                if (revealed && answeredHere) Spacer(Modifier.height(with(density) { lead.toDp() }))
+                Column(
+                    Modifier.fillMaxWidth().then(if (!revealed) Modifier.heightIn(min = with(density) { (viewport - pad).toDp() }) else Modifier),
+                    verticalArrangement = if (!revealed) Arrangement.Bottom else Arrangement.Top,
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().onSizeChanged { if (!revealed) lead = (viewport - pad - it.height).coerceAtLeast(0) },
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        if (showTopicTag) topicName(q)?.let {
+                            Text(it, Modifier.clip(MaterialTheme.shapes.small).background(p.primaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium, color = p.onPrimaryContainer)
+                        }
+                        QuestionBody(module, q)
+                        val correct = q.correctAnswer
+                        Column(
+                            Modifier.fillMaxWidth().onGloballyPositioned { optionsTop = it.positionInParent().y + lead + padTop },
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            q.optionList().forEach { (letter, text) ->
+                                val state = when {
+                                    !revealed -> OptState.IDLE
+                                    letter == correct -> OptState.CORRECT
+                                    letter == selected -> OptState.WRONG
+                                    else -> OptState.DIM
+                                }
+                                OptionRow(module, letter, text, state, enabled = !revealed) { answeredHere = true; answers = answers + (q.id to letter) }
+                            }
+                        }
                     }
-                })
-                q.explanation?.let { ExplanationBox(module, it, selected == correct, uid = uid) }
+                    if (revealed) {
+                        Spacer(Modifier.height(14.dp))
+                        Column(
+                            Modifier.fillMaxWidth().onGloballyPositioned { shownTop = it.positionInParent().y + lead + padTop },
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            if (uid != null) FlagBar(flags[uid] ?: Flag(), uid, services.progress, labels = true, itemId = q.id, onDeleted = {
+                                // Deleting mid-run takes the question out: its point (if any) goes with it, and the next
+                                // question slides into this position. Nothing is skipped, the result counts only what is
+                                // left, and once nothing unanswered remains the result shows.
+                                val rest = deck.filter { it.id != q.id }
+                                removed = removed + q.id
+                                if (rest.isEmpty()) done = true
+                                else {
+                                    if (idx >= rest.size) idx = rest.size - 1
+                                    if (rest.all { it.id in answers }) done = true
+                                }
+                            })
+                            q.explanation?.let { ExplanationBox(module, it, selected == q.correctAnswer, uid = uid) }
+                        }
+                    }
+                }
             }
         }
         HorizontalDivider(color = p.outline)
