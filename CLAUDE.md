@@ -229,7 +229,9 @@ the partial file.
   Prev reopens an answered question read-only ("Review" tag): the answer stays, the flag bar / notes / highlights / delete still work.
   Next is enabled only once the current question is answered. Web parity: `shared/QuizNav.jsx` + `.quiz-nav` in both web apps, same
   answers map in QuizMode/ExamMode (saved in the sessionStorage quiz session as `answers`).
-- **Thumb layout (0.6.7)**: while unanswered, the question group is bottom-aligned in a viewport-high box (right above the bar); the gap is
-  measured by `onSizeChanged` and becomes a fixed Spacer once answered, so the options never move; a `LaunchedEffect` then scrolls so the
-  flag bar lands ~40% down without pushing the options' top out of view. Prev reviews (`answeredHere == false`) lay out from the top.
-  Web: `shared/useQuizLead.js` + `.quiz-lead` spacer, same rules.
+- **Thumb layout (0.6.8)**: the stage below the progress bar is bottom-anchored (min height = viewport): the card (question, options,
+  flag row) sits right above the Prev/Next bar and the explanation appears ABOVE the card, using the space that was blank. The flag row
+  is laid out invisible/untappable before the answer, so answering never moves the options; an explanation taller than the gap scrolls
+  the page by exactly the overflow (card position anchored at tap time). New question / Prev review: card bottom lands just above the bar.
+  "Review" = idx < furthest index reached (not the question just answered). Web: `shared/useQuizStage.js` + `.quiz-stage`.
+  (0.6.7's "blank gap above the question, explanation below" was rejected by the user as a big blank block; don't bring it back.)
