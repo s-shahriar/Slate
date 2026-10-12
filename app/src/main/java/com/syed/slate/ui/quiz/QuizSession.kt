@@ -39,7 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -164,16 +165,18 @@ fun QuizSession(
         // Thumb layout: the stage fills the space down to the Prev/Next bar and is bottom-anchored, so the card
         // (question, options, flag row) sits right above the bar and the explanation appears in the space ABOVE it.
         // The flag row is laid out (invisible, untappable) before the answer, so answering never moves the options.
-        // An explanation taller than the free space scrolls the page by exactly the overflow, so the card still stays
-        // put. A new question (or a Prev review) lands with the card's bottom just above the bar, or its top at the
-        // top when the card alone is taller than the screen.
+        // The explanation is capped to exactly the free space above the card and scrolls inside its own box (bottom
+        // fade while there is more), so its first line is always on screen. Only when that space is tiny (a very
+        // tall question) does it keep a minimum height and push the page to scroll. A new question (or a Prev review)
+        // lands with the card's bottom just above the bar, or its top at the top when the card is taller than the screen.
         val scroll = rememberScrollState()
         val scope = rememberCoroutineScope()
         val density = LocalDensity.current
         val viewportTop = remember { floatArrayOf(0f) }
-        val cardScreenTop = remember { floatArrayOf(0f) }       // last on-screen top of the card (px, in the viewport)
-        var anchor by remember { mutableStateOf<Float?>(null) }  // card top when the answer was tapped
+        var cardH by remember { mutableIntStateOf(0) }            // measured height of the card (px)
         var placed by remember(q.id) { mutableStateOf(false) }   // initial scroll for this question done
+        val explScroll = rememberScrollState()
+        LaunchedEffect(q.id) { explScroll.scrollTo(0) }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { viewportTop[0] = it.positionInRoot().y }) {
             val viewport = constraints.maxHeight
             val gap = with(density) { 12.dp.toPx() }
@@ -182,20 +185,29 @@ fun QuizSession(
                     Modifier.fillMaxWidth().heightIn(min = with(density) { viewport.toDp() }).padding(vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom),
                 ) {
-                    if (revealed) q.explanation?.let { ExplanationBox(module, it, selected == q.correctAnswer, uid = uid) }
+                    if (revealed) q.explanation?.let { text ->
+                        // free = viewport − vertical padding (32dp) − the gap to the card (14dp) − the card
+                        val free = viewport - with(density) { 46.dp.toPx() } - cardH
+                        val cap = with(density) { maxOf(free, 96.dp.toPx()).toDp() }
+                        Box(Modifier.fillMaxWidth().heightIn(max = cap).clip(MaterialTheme.shapes.medium)) {
+                            ExplanationBox(module, text, selected == q.correctAnswer, Modifier.verticalScroll(explScroll), uid = uid)
+                            if (explScroll.canScrollForward) Box(
+                                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(36.dp)
+                                    .background(Brush.verticalGradient(listOf(Color.Transparent, p.elevated))),
+                            )
+                        }
+                    }
                     Column(
                         Modifier.fillMaxWidth().onGloballyPositioned { c ->
                             val top = c.positionInRoot().y - viewportTop[0]
-                            cardScreenTop[0] = top
-                            val a = anchor
-                            if (a != null) {
-                                anchor = null
-                                val d = top - a
-                                if (kotlin.math.abs(d) > 0.5f) scope.launch { scroll.scrollBy(d) }
-                            } else if (!placed) {
+                            if (cardH != c.size.height) cardH = c.size.height
+                            if (!placed) {
                                 placed = true
                                 val contentTop = top + scroll.value
-                                val target = minOf(contentTop + c.size.height - (viewport - gap), contentTop - gap).coerceAtLeast(0f)
+                                // With an explanation above the card, never scroll its first line out of view: it is the
+                                // first thing in the stage, so that means staying at the top.
+                                val target = if (revealed && q.explanation != null) 0f
+                                    else minOf(contentTop + c.size.height - (viewport - gap), contentTop - gap).coerceAtLeast(0f)
                                 scope.launch { scroll.scrollTo(target.toInt()) }
                             }
                         },
@@ -214,10 +226,7 @@ fun QuizSession(
                                 letter == selected -> OptState.WRONG
                                 else -> OptState.DIM
                             }
-                            OptionRow(module, letter, text, state, enabled = !revealed) {
-                                anchor = cardScreenTop[0]
-                                answers = answers + (q.id to letter)
-                            }
+                            OptionRow(module, letter, text, state, enabled = !revealed) { answers = answers + (q.id to letter) }
                         }
                         if (uid != null) Box(Modifier.fillMaxWidth().alpha(if (revealed) 1f else 0f).then(if (revealed) Modifier else Modifier.clearAndSetSemantics {})) {
                             FlagBar(flags[uid] ?: Flag(), uid, services.progress, labels = true, itemId = q.id, onDeleted = {
