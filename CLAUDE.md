@@ -224,3 +224,8 @@ the partial file.
 - **Code is highlightable** (2026-10-09): `CodeBlock(code, lang, uid, block)` renders an `HText` whose `base` is the token colouring;
   block keys match the web — `code`, `points.N.code`, `headerCode` (and MCQ `q.code`). ict-quiz's `prune-highlights.mjs` models them.
 - **Pinned question bar carries the flag bar** (`QuestionPeekBar(actions = …)` from `ReaderScreen`), like the web's `.wpeek-actions`.
+- **Quiz / Exam Prev · Next bar (0.6.6, 2026-10-12)**: `QuizSession` keeps the answers in a `rememberSaveable` map (row id → letter); score,
+  progress and the result are counted from it. Prev/Next sit in a bar pinned to the bottom edge (one-handed reach; `HandMirror` flips it).
+  Prev reopens an answered question read-only ("Review" tag): the answer stays, the flag bar / notes / highlights / delete still work.
+  Next is enabled only once the current question is answered. Web parity: `shared/QuizNav.jsx` + `.quiz-nav` in both web apps, same
+  answers map in QuizMode/ExamMode (saved in the sessionStorage quiz session as `answers`).

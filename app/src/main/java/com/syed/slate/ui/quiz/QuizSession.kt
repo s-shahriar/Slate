@@ -4,10 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +57,11 @@ import kotlinx.coroutines.delay
 /**
  * One question at a time with instant feedback, used by both Quiz and Exam. The list is fixed when the session
  * starts, so marking or un-marking questions part-way through never reshuffles or shortens it.
+ *
+ * Prev / Next live in a bar pinned to the bottom edge (thumb reach, one-handed; the hand mirror flips it). Prev
+ * steps back through the questions already answered as a read-only review: the answer given stays, but the
+ * flag bar (Nail / Important / Weak / Note / Delete) and highlights still work. Next lights up once the current
+ * question is answered.
  */
 @Composable
 fun QuizSession(
@@ -72,8 +81,9 @@ fun QuizSession(
     val module = services.id
     val flags by services.progress.flags.collectAsState()
     var idx by rememberSaveable { mutableIntStateOf(0) }
-    var score by rememberSaveable { mutableIntStateOf(0) }
-    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    // The option picked for each question (row id → letter). An answer never changes once given: going back shows
+    // it again read-only. Score and progress are counted from it, so deleting a question drops its point by itself.
+    var answers by rememberSaveable { mutableStateOf(emptyMap<String, String>()) }
     var done by rememberSaveable { mutableStateOf(false) }
     var attempt by rememberSaveable { mutableIntStateOf(0) } // bumps on retry so the list is reshuffled
     // A retry reshuffles from a saved seed, so recreating the screen mid-retry gives back the same order.
@@ -82,7 +92,8 @@ fun QuizSession(
     // Questions deleted during this run (row ids). They leave the deck for good, so the total shrinks with them.
     var removed by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val deck = remember(ordered, removed) { if (removed.isEmpty()) ordered else removed.toHashSet().let { r -> ordered.filter { it.id !in r } } }
-    val revealed = selected != null
+    val answered = deck.count { it.id in answers }
+    val score = deck.count { answers[it.id] == it.correctAnswer }
 
     Column(Modifier.fillMaxSize()) {
         HandMirror { Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -108,24 +119,38 @@ fun QuizSession(
             return@Column
         }
         if (done || idx >= deck.size) {
-            val answered = if (done && idx < deck.size) idx + if (revealed) 1 else 0 else deck.size
-            ScoreRingScreen(score, if (stoppable) answered.coerceAtLeast(0) else deck.size, resultTitle, resultLabel,
-                onRetry = { idx = 0; score = 0; selected = null; done = false; attempt++ }, onHome = onHome)
+            // A stopped exam is scored over what was answered; a finished run over the whole deck.
+            ScoreRingScreen(score, if (stoppable) answered else deck.size, resultTitle, resultLabel,
+                onRetry = { idx = 0; answers = emptyMap(); done = false; attempt++ }, onHome = onHome)
             return@Column
         }
 
         val q = deck[idx]
         val uid = q.uid
-        val progress = (idx + if (revealed) 1 else 0) / deck.size.toFloat()
+        val selected = answers[q.id]
+        val revealed = selected != null
+        // The question you'd be answering next: anything before it is a review.
+        val live = deck.indexOfFirst { it.id !in answers }.let { if (it < 0) deck.size - 1 else it }
+        val reviewing = revealed && idx < live
+        val progress = answered / deck.size.toFloat()
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text("Question ${idx + 1} of ${deck.size}", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Question ${idx + 1} of ${deck.size}", style = MaterialTheme.typography.labelLarge)
+                if (reviewing) {
+                    Text("Review", Modifier.padding(start = 8.dp).clip(MaterialTheme.shapes.small).background(p.elevated).padding(horizontal = 8.dp, vertical = 1.dp),
+                        style = MaterialTheme.typography.labelMedium, color = p.text2)
+                }
+                Box(Modifier.weight(1f))
                 Text("${Math.round(progress * 100)}%", style = MaterialTheme.typography.labelLarge, color = p.text3)
             }
             LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth(), trackColor = p.outline)
         }
+        // Every question (forward or back) opens at the top: Next is tapped from the end of the explanation, so a
+        // long question would otherwise come in part-way down.
+        val scroll = rememberScrollState()
+        LaunchedEffect(idx) { scroll.scrollTo(0) }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (showTopicTag) topicName(q)?.let {
@@ -141,24 +166,37 @@ fun QuizSession(
                     letter == selected -> OptState.WRONG
                     else -> OptState.DIM
                 }
-                OptionRow(module, letter, text, state, enabled = !revealed) {
-                    selected = letter
-                    if (letter == correct) score++
-                }
+                OptionRow(module, letter, text, state, enabled = !revealed) { answers = answers + (q.id to letter) }
             }
             if (revealed) {
                 if (uid != null) FlagBar(flags[uid] ?: Flag(), uid, services.progress, labels = true, itemId = q.id, onDeleted = {
-                    // Deleting mid-run takes the question out: a point already scored on it is taken back, and the
-                    // next question slides into this position. Nothing is skipped and the result counts only what is left.
-                    if (selected == q.correctAnswer) score--
+                    // Deleting mid-run takes the question out: its point (if any) goes with it, and the next question
+                    // slides into this position. Nothing is skipped, the result counts only what is left, and once
+                    // nothing unanswered remains the result shows.
+                    val rest = deck.filter { it.id != q.id }
                     removed = removed + q.id
-                    selected = null
-                    if (idx >= deck.size - 1) { idx = deck.size - 1; done = true } // it was the last one: show the result
+                    if (rest.isEmpty()) done = true
+                    else {
+                        if (idx >= rest.size) idx = rest.size - 1
+                        if (rest.all { it.id in answers }) done = true
+                    }
                 })
                 q.explanation?.let { ExplanationBox(module, it, selected == correct, uid = uid) }
+            }
+        }
+        HorizontalDivider(color = p.outline)
+        HandMirror {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = { if (idx > 0) idx-- }, enabled = idx > 0,
+                    modifier = Modifier.width(64.dp).height(50.dp), contentPadding = PaddingValues(0.dp),
+                ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "আগের প্রশ্ন") }
                 Button(
-                    onClick = { if (idx + 1 >= deck.size) done = true else { idx++; selected = null } },
-                    Modifier.fillMaxWidth(),
+                    onClick = { if (idx + 1 >= deck.size) done = true else idx++ }, enabled = revealed,
+                    modifier = Modifier.weight(1f).height(50.dp),
                 ) {
                     Text(if (idx + 1 >= deck.size) "ফলাফল দেখুন" else "পরবর্তী প্রশ্ন")
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.padding(start = 8.dp))
