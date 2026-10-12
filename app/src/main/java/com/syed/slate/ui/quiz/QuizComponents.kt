@@ -118,7 +118,7 @@ fun OptionRow(module: ModuleId, letter: String, text: String, state: OptState, e
 }
 
 @Composable
-fun ExplanationBox(module: ModuleId, html: String, correct: Boolean?, modifier: Modifier = Modifier, uid: String? = null) {
+fun ExplanationBox(module: ModuleId, html: String, correct: Boolean?, modifier: Modifier = Modifier, uid: String? = null, headerEnd: (@Composable () -> Unit)? = null) {
     val p = LocalPalette.current
     Column(
         modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.elevated).padding(14.dp),
@@ -127,13 +127,14 @@ fun ExplanationBox(module: ModuleId, html: String, correct: Boolean?, modifier: 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(Icons.Filled.Lightbulb, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             Text("ব্যাখ্যা", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            if (correct != null || headerEnd != null) Box(Modifier.weight(1f))
             if (correct != null) {
-                Box(Modifier.weight(1f))
                 Text(
                     if (correct) "✓ সঠিক" else "✗ ভুল", style = MaterialTheme.typography.labelLarge,
                     color = if (correct) p.ok else p.bad,
                 )
             }
+            headerEnd?.invoke()
         }
         if (module == ModuleId.ICT) HText(uid, "explanation", html, style = MaterialTheme.typography.bodyMedium)
         else HtmlHText(uid, "explanation", html, style = MaterialTheme.typography.bodyMedium)

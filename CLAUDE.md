@@ -233,6 +233,7 @@ the partial file.
   flag row) sits right above the Prev/Next bar and the explanation appears ABOVE the card, using the space that was blank. The flag row
   is laid out invisible/untappable before the answer, so answering never moves the options. The explanation is capped to the free
   space above the card (min 96dp) and scrolls inside its own box with a bottom fade (0.6.9: scrolling the page instead cut off its first
-  line, which the user rejected). Never scroll the explanation's first line out of view. New question: card bottom just above the bar.
+  line, which the user rejected). Never scroll the explanation's first line out of view. When it is cut off, a 'পুরোটা' chip in its header
+  (0.7.0) opens it at full height so text can be selected/highlighted (a 3-line inner-scrolling box made that impossible); resets per question. New question: card bottom just above the bar.
   "Review" = idx < furthest index reached (not the question just answered). Web: `shared/useQuizStage.js` + `.quiz-stage`.
   (0.6.7's "blank gap above the question, explanation below" was rejected by the user as a big blank block; don't bring it back.)

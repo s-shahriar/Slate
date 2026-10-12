@@ -39,6 +39,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.launch
@@ -177,6 +183,9 @@ fun QuizSession(
         var placed by remember(q.id) { mutableStateOf(false) }   // initial scroll for this question done
         val explScroll = rememberScrollState()
         LaunchedEffect(q.id) { explScroll.scrollTo(0) }
+        // Open at full height (page scrolls, like the old layout) so the whole explanation can be selected and
+        // highlighted; resets on the next question.
+        var explExpanded by remember(q.id) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { viewportTop[0] = it.positionInRoot().y }) {
             val viewport = constraints.maxHeight
             val gap = with(density) { 12.dp.toPx() }
@@ -189,8 +198,17 @@ fun QuizSession(
                         // free = viewport − vertical padding (32dp) − the gap to the card (14dp) − the card
                         val free = viewport - with(density) { 46.dp.toPx() } - cardH
                         val cap = with(density) { maxOf(free, 96.dp.toPx()).toDp() }
-                        Box(Modifier.fillMaxWidth().heightIn(max = cap).clip(MaterialTheme.shapes.medium)) {
-                            ExplanationBox(module, text, selected == q.correctAnswer, Modifier.verticalScroll(explScroll), uid = uid)
+                        val toggle: @Composable () -> Unit = {
+                            ExplExpandChip(explExpanded) {
+                                explExpanded = !explExpanded
+                                scope.launch { explScroll.scrollTo(0); scroll.animateScrollTo(0) }
+                            }
+                        }
+                        val cut = explScroll.maxValue > 0
+                        if (explExpanded) ExplanationBox(module, text, selected == q.correctAnswer, uid = uid, headerEnd = toggle)
+                        else Box(Modifier.fillMaxWidth().heightIn(max = cap).clip(MaterialTheme.shapes.medium)) {
+                            ExplanationBox(module, text, selected == q.correctAnswer, Modifier.verticalScroll(explScroll), uid = uid,
+                                headerEnd = if (cut) toggle else null)
                             if (explScroll.canScrollForward) Box(
                                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(36.dp)
                                     .background(Brush.verticalGradient(listOf(Color.Transparent, p.elevated))),
@@ -281,3 +299,18 @@ private fun StopButton(onStop: () -> Unit) {
         Text(if (armed) "Sure?" else "Stop Exam")
     }
 }
+
+/** Expand / fold toggle for a capped explanation (thumb layout). */
+@Composable
+private fun ExplExpandChip(expanded: Boolean, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Row(
+        Modifier.padding(start = 8.dp).clip(CircleShape).border(BorderStroke(1.dp, p.outline), CircleShape)
+            .clickable(onClick = onClick).padding(horizontal = 9.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(if (expanded) Icons.Filled.UnfoldLess else Icons.Filled.UnfoldMore, null, Modifier.size(15.dp), tint = p.text2)
+        Text(if (expanded) "ছোট" else "পুরোটা", style = MaterialTheme.typography.labelMedium, color = p.text2)
+    }
+}
+
