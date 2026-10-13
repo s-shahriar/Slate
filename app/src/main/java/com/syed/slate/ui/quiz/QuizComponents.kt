@@ -150,7 +150,7 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
     var confirmTrash by remember { mutableStateOf(false) }
     val trash = LocalTrash.current
     // The chips this question shows, in order. "secondary" ones (Topic, Delete) can drop their label first.
-    class Spec(val icon: ImageVector, val label: String, val on: Boolean, val color: Color, val secondary: Boolean, val onClick: () -> Unit)
+    class Spec(val icon: ImageVector, val label: String, val on: Boolean, val color: Color, val secondary: Boolean, val glow: Boolean = false, val onClick: () -> Unit)
     val primary = MaterialTheme.colorScheme.primary
     val specs = buildList {
         add(Spec(Icons.Filled.Star, if (flag.nailed) "Nailed!" else "Nail It", flag.nailed, p.ok, false) { progress.update(uid, FlagRules::toggleNailed) })
@@ -159,7 +159,8 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
             add(Spec(Icons.Filled.LocalFireDepartment, if (flag.weak) "Weak!" else "Weak", flag.weak, p.warn, false) { progress.update(uid, FlagRules::toggleWeak) })
         }
         // Hidden by default: a note is read through the chip (peek sheet), or written straight away when there is none yet.
-        add(Spec(Icons.Filled.EditNote, "Note", flag.note != null, primary, false) { if (flag.note != null) peekOpen = true else editorOpen = true })
+        // A saved note also glares (NoteGlow) so an annotated question stands out — the only chip that animates.
+        add(Spec(Icons.Filled.EditNote, "Note", flag.note != null, primary, false, glow = flag.note != null) { if (flag.note != null) peekOpen = true else editorOpen = true })
         // The web's owner-only QuestionEditButton (LiveMCQ): move the question to another topic / sub-topic.
         if (onTopicEdit != null) add(Spec(Icons.AutoMirrored.Filled.Label, "Topic", false, primary, true) { onTopicEdit() })
         if (trash != null && itemId != null) add(Spec(Icons.Filled.Delete, "Delete", false, p.bad, true) { confirmTrash = true })
@@ -168,7 +169,7 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
         // Study / Written cards: a compact cluster of icon chips on the hand-toggle edge (the mirror flips it).
         HandMirror {
             Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                specs.forEach { sp -> IconFlagChip(sp.icon, sp.label, sp.on, sp.color, sp.onClick) }
+                specs.forEach { sp -> IconFlagChip(sp.icon, sp.label, sp.on, sp.color, sp.glow, sp.onClick) }
             }
         }
     } else {
@@ -188,7 +189,7 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
                     } ?: 10.sp
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    specs.forEach { sp -> BarFlagChip(sp.icon, sp.label, sp.on, sp.color, font, Modifier.weight(1f), sp.onClick) }
+                    specs.forEach { sp -> BarFlagChip(sp.icon, sp.label, sp.on, sp.color, font, Modifier.weight(1f), sp.glow, sp.onClick) }
                 }
             }
         }
@@ -213,26 +214,28 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
 }
 
 @Composable
-private fun IconFlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, onClick: () -> Unit) {
+private fun IconFlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, glow: Boolean = false, onClick: () -> Unit) {
     val p = LocalPalette.current
     Box(
-        Modifier.clip(MaterialTheme.shapes.small).background(if (on) color.copy(alpha = .16f) else Color.Transparent)
+        Modifier.noteGlow(glow, color, MaterialTheme.shapes.small)
+            .clip(MaterialTheme.shapes.small).background(if (on) color.copy(alpha = .16f) else Color.Transparent)
             .border(BorderStroke(1.dp, if (on) color else p.outline), MaterialTheme.shapes.small)
             .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
-    ) { Icon(icon, label, Modifier.size(18.dp), tint = if (on) color else p.text3) }
+    ) { Icon(icon, label, Modifier.size(18.dp).noteGlowIcon(glow), tint = if (on) color else p.text3) }
 }
 
 /** One slot of the quiz action bar: icon over label, the whole slot tappable, filled when the flag is on. */
 @Composable
-private fun BarFlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, font: TextUnit, modifier: Modifier, onClick: () -> Unit) {
+private fun BarFlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, font: TextUnit, modifier: Modifier, glow: Boolean = false, onClick: () -> Unit) {
     val p = LocalPalette.current
     Column(
-        modifier.clip(MaterialTheme.shapes.medium).background(if (on) color.copy(alpha = .16f) else p.surface)
+        modifier.noteGlow(glow, color, MaterialTheme.shapes.medium)
+            .clip(MaterialTheme.shapes.medium).background(if (on) color.copy(alpha = .16f) else p.surface)
             .border(BorderStroke(1.dp, if (on) color else p.outline), MaterialTheme.shapes.medium)
             .clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = if (on) color else p.text3)
+        Icon(icon, null, Modifier.size(20.dp).noteGlowIcon(glow), tint = if (on) color else p.text3)
         Text(
             label, style = MaterialTheme.typography.labelMedium.copy(fontSize = font), color = if (on) color else p.text2,
             maxLines = 1, softWrap = false, textAlign = TextAlign.Center,

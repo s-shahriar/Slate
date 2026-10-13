@@ -68,6 +68,8 @@ import com.syed.slate.progress.FlagRules
 import com.syed.slate.progress.ProgressRepository
 import com.syed.slate.ui.highlight.HText
 import com.syed.slate.ui.quiz.NoteEditorSheet
+import com.syed.slate.ui.quiz.noteGlow
+import com.syed.slate.ui.quiz.noteGlowIcon
 import com.syed.slate.ui.quiz.NotePeekSheet
 import com.syed.slate.ui.reader.DataTable
 import com.syed.slate.ui.theme.LocalPalette
@@ -95,14 +97,15 @@ fun Modifier.practiceCard(): Modifier {
 }
 
 @Composable
-private fun FlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, onClick: () -> Unit) {
+private fun FlagChip(icon: ImageVector, label: String, on: Boolean, color: Color, glow: Boolean = false, onClick: () -> Unit) {
     val p = LocalPalette.current
     Row(
-        Modifier.clip(MaterialTheme.shapes.small).background(if (on) color.copy(alpha = .16f) else Color.Transparent)
+        Modifier.noteGlow(glow, color, MaterialTheme.shapes.small)
+            .clip(MaterialTheme.shapes.small).background(if (on) color.copy(alpha = .16f) else Color.Transparent)
             .border(BorderStroke(1.dp, if (on) color else p.outline), MaterialTheme.shapes.small)
             .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) { Icon(icon, label, Modifier.size(18.dp), tint = if (on) color else p.text3) }
+    ) { Icon(icon, label, Modifier.size(18.dp).noteGlowIcon(glow), tint = if (on) color else p.text3) }
 }
 
 /**
@@ -119,7 +122,7 @@ fun ImpWeakButtons(flag: Flag, uid: String, progress: ProgressRepository, modifi
         Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
             FlagChip(Icons.Filled.Bookmark, "Important", flag.important, p.imp) { progress.update(uid, FlagRules::toggleImportant) }
             if (flag.important) FlagChip(Icons.Filled.LocalFireDepartment, "Weak", flag.weak, p.warn) { progress.update(uid, FlagRules::toggleWeak) }
-            FlagChip(Icons.Filled.EditNote, "Note", flag.note != null, MaterialTheme.colorScheme.primary) {
+            FlagChip(Icons.Filled.EditNote, "Note", flag.note != null, MaterialTheme.colorScheme.primary, glow = flag.note != null) {
                 if (flag.note != null) peekOpen = true else editorOpen = true
             }
         }
