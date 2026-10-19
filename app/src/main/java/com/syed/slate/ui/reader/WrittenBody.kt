@@ -206,13 +206,78 @@ fun QuestionTextBlocks(text: String, modifier: Modifier = Modifier, uid: String?
     }
 }
 
-/** The answer, in the order the web shows it: code, image, summary, points, diagram, table, mistakes, mnemonic, extended. */
+/**
+ * The web's language switcher (WrittenCardBody `variants`): a program can carry the same solution in more than one
+ * language. The answer's own fields are the base language (Java for the Program set), `variants` holds the others, and a
+ * variant lists only the fields that differ; the rest come from the base. Tabs put C first, and the choice is shared by
+ * every card and kept across launches. A field the variant supplies gets its highlight blocks in its own namespace
+ * (`C:code`, `C:points.3`), exactly like the web, so a highlight on the C code never lands on the Java code.
+ */
+object WrittenLang {
+    private const val KEY = "writtenLang"
+    private var prefs: android.content.SharedPreferences? = null
+    var current by mutableStateOf("C")
+        private set
+    fun init(ctx: android.content.Context) {
+        if (prefs != null) return
+        prefs = ctx.applicationContext.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+        current = prefs?.getString(KEY, "C") ?: "C"
+    }
+    fun set(lang: String) { current = lang; prefs?.edit()?.putString(KEY, lang)?.apply() }
+}
+
+private val LANG_FIELDS = listOf("code", "codeLang", "image", "summary", "points", "diagram", "table", "mistakes", "mnemonic")
+
+/** The answer, in the order the web shows it: language tabs, code, image, summary, points, diagram, table, mistakes, mnemonic, Java-vs-C table, extended. */
 @Composable
 fun WrittenBody(a: JSONObject, modifier: Modifier = Modifier, uid: String? = null) {
+    val ctx = LocalContext.current
+    remember { WrittenLang.init(ctx) }
+    val variantsJson = a.optJSONArray("variants")
+    val variants = remember(a) { if (variantsJson == null) emptyList() else List(variantsJson.length()) { variantsJson.optJSONObject(it) }.filterNotNull().filter { it.str("lang") != null } }
+    if (variants.isEmpty()) { WrittenBodyContent(a, modifier, uid, { it }, a); return }
+    val baseLang = a.str("lang") ?: a.str("codeLang")?.let { if (it.equals("c", true)) "C" else it } ?: "Code"
+    val langs = (listOf(baseLang) + variants.map { it.getString("lang") }).sortedBy { if (it.equals("c", true)) 0 else 1 }
+    val active = langs.firstOrNull { it.equals(WrittenLang.current, true) } ?: langs.first()
+    val variant = variants.firstOrNull { it.getString("lang") == active }
+    val merged = remember(a, variant) {
+        if (variant == null) a else JSONObject(a.toString()).also { m -> LANG_FIELDS.filter { variant.has(it) }.forEach { m.put(it, variant.get(it)) } }
+    }
+    val bk: (String) -> String = { k -> if (variant != null && variant.has(k.substringBefore('.'))) "${variant.getString("lang")}:$k" else k }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LangTabs(langs, active) { WrittenLang.set(it) }
+        WrittenBodyContent(merged, Modifier, uid, bk, a)
+    }
+}
+
+/** Segmented control, as the web's `.written-lang-tabs`: the active tab filled with the topic colour. */
+@Composable
+private fun LangTabs(langs: List<String>, active: String, onPick: (String) -> Unit) {
+    val p = LocalPalette.current
+    val primary = MaterialTheme.colorScheme.primary
+    Row(
+        Modifier.clip(MaterialTheme.shapes.medium).background(p.elevated).border(1.dp, p.outline, MaterialTheme.shapes.medium).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        langs.forEach { l ->
+            val on = l == active
+            Box(
+                Modifier.widthIn(min = 64.dp).clip(MaterialTheme.shapes.small).background(if (on) primary else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onPick(l) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(l, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = if (on) MaterialTheme.colorScheme.onPrimary else p.text2)
+            }
+        }
+    }
+}
+
+@Composable
+private fun WrittenBodyContent(a: JSONObject, modifier: Modifier, uid: String?, bk: (String) -> String, base: JSONObject) {
     val p = LocalPalette.current
     val primary = MaterialTheme.colorScheme.primary
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        a.str("code")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel(a.str("codeLang") ?: "Code"); CodeBlock(it, a.str("codeLang"), uid = uid, block = "code") } }
+        a.str("code")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel(a.str("codeLang") ?: "Code"); CodeBlock(it, a.str("codeLang"), uid = uid, block = bk("code")) } }
         a.str("image")?.let { AnswerImage(it) }
 
         // সংক্ষেপ — the summary, a string or a list of lines. Web `.written-summary`:
@@ -233,27 +298,27 @@ fun WrittenBody(a: JSONObject, modifier: Modifier = Modifier, uid: String? = nul
                 )
                 if (s is JSONArray) lines.forEachIndexed { i, l ->
                     if (i > 0) HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = .08f))
-                    HText(uid, "summary.$i", l, style = MaterialTheme.typography.bodyMedium)
+                    HText(uid, bk("summary.$i"), l, style = MaterialTheme.typography.bodyMedium)
                 }
-                else HText(uid, "summary", lines.first(), style = MaterialTheme.typography.bodyMedium)
+                else HText(uid, bk("summary"), lines.first(), style = MaterialTheme.typography.bodyMedium)
             }
         }
 
-        a.optJSONArray("points")?.let { Points(it, uid) }
+        a.optJSONArray("points")?.let { Points(it, uid, bk) }
 
-        a.str("diagram")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel("Diagram"); DiagramBlock(it, uid = uid, block = "diagram") } }
+        a.str("diagram")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel("Diagram"); DiagramBlock(it, uid = uid, block = bk("diagram")) } }
 
         a.optJSONObject("table")?.takeIf { (it.optJSONArray("rows")?.length() ?: 0) > 0 }?.let { t ->
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 BlockLabel("তুলনা")
-                DataTable(t.optJSONArray("headers")?.strings(), rows(t.getJSONArray("rows")), uid = uid, prefix = "table")
+                DataTable(t.optJSONArray("headers")?.strings(), rows(t.getJSONArray("rows")), uid = uid, prefix = bk("table"))
             }
         }
 
         a.optJSONArray("mistakes")?.takeIf { it.length() > 0 }?.let { m ->
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 BlockLabel("সাধারণ ভুল")
-                DataTable(listOf("❌ ভুল ধারণা", "✅ আসল কথা"), rows(m), uid = uid, prefix = "mistakes")
+                DataTable(listOf("❌ ভুল ধারণা", "✅ আসল কথা"), rows(m), uid = uid, prefix = bk("mistakes"))
             }
         }
 
@@ -263,7 +328,15 @@ fun WrittenBody(a: JSONObject, modifier: Modifier = Modifier, uid: String? = nul
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Icon(Icons.Filled.Psychology, null, Modifier.size(20.dp), tint = primary)
-                HText(uid, "mnemonic", it, style = MaterialTheme.typography.bodyMedium)
+                HText(uid, bk("mnemonic"), it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        base.optJSONObject("langDiff")?.takeIf { (it.optJSONArray("rows")?.length() ?: 0) > 0 }?.let { d ->
+            val headers = d.optJSONArray("headers")?.strings() ?: listOf("Java", "C")
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                BlockLabel(headers.take(2).joinToString(" বনাম "))
+                DataTable(headers, rows(d.getJSONArray("rows")), uid = uid, prefix = "langDiff")
             }
         }
 
@@ -278,17 +351,17 @@ private fun rows(a: JSONArray): List<List<String>> = List(a.length()) { i -> a.o
  * Blocks break the list in two, so a diagram sits right after the part it illustrates.
  */
 @Composable
-private fun Points(points: JSONArray, uid: String?) {
+private fun Points(points: JSONArray, uid: String?, bk: (String) -> String = { it }) {
     // Web `.written-points` gap: 9px.
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         for (i in 0 until points.length()) {
             val pt = points.get(i)
             when {
                 pt is JSONObject && pt.str("code") != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BlockLabel(pt.str("label") ?: pt.str("codeLang") ?: "Code"); CodeBlock(pt.getString("code"), pt.str("codeLang"), uid = uid, block = "points.$i.code")
+                    BlockLabel(pt.str("label") ?: pt.str("codeLang") ?: "Code"); CodeBlock(pt.getString("code"), pt.str("codeLang"), uid = uid, block = bk("points.$i.code"))
                 }
                 pt is JSONObject && pt.str("diagram") != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BlockLabel(pt.str("label") ?: "Diagram"); DiagramBlock(pt.getString("diagram"), uid = uid, block = "points.$i.diagram")
+                    BlockLabel(pt.str("label") ?: "Diagram"); DiagramBlock(pt.getString("diagram"), uid = uid, block = bk("points.$i.diagram"))
                 }
                 // Web `.written-subpoint`: a 2px bar in the topic colour at 40%, 3px out from the edge,
                 // text indented 12px past it and slightly dimmed — not a dash.
@@ -298,13 +371,13 @@ private fun Points(points: JSONArray, uid: String?) {
                 ) {
                     Box(Modifier.width(2.dp).fillMaxHeight().clip(MaterialTheme.shapes.extraSmall).background(MaterialTheme.colorScheme.primary.copy(alpha = .4f)))
                     HText(
-                        uid, "points.$i", pt.getString("sub"), Modifier.weight(1f),
+                        uid, bk("points.$i"), pt.getString("sub"), Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = .88f),
                     )
                 }
                 else -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Dot(); HText(uid, "points.$i", pt.toString(), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Dot(); HText(uid, bk("points.$i"), pt.toString(), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
