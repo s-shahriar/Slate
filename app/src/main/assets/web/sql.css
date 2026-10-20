@@ -383,3 +383,13 @@
 .sl-step-sql { -webkit-overflow-scrolling: touch; }
 /* The web's global reset strips button chrome; the WebView would otherwise paint an unselected V1/V2 tab white. */
 .sl-root button { background: none; border: 0; color: inherit; font: inherit; }
+/* Sticky schema: one line per table, pinned to the top of the WebView while the steps scroll (the web pins it under its top bar). */
+.sl-schema {
+  position: sticky; top: 0; z-index: 6; margin: 0 -12px 14px; padding: 7px 12px;
+  background: var(--sl-bg); border-bottom: 1px solid var(--sl-line);
+  font-family: var(--sl-mono); font-size: 12px; line-height: 21px; color: var(--sl-ink-3);
+  overflow-x: auto; scrollbar-width: none;
+}
+.sl-schema::-webkit-scrollbar { display: none; }
+.sl-schema-row { white-space: nowrap; }
+.sl-schema-t { color: var(--sl-outer); font-weight: 600; }

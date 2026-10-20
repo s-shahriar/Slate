@@ -208,6 +208,9 @@ async function sqlLab() {
           </div>
           <h1 className="sl-title">{l.title}</h1>
           <div className="sl-question"><div className="sl-q-head"><span className="sl-q-label">Question</span></div><p>{l.question}</p></div>
+          <div className="sl-schema">{(l.tables || Object.keys(data.tables)).map(t => (
+            <div key={t} className="sl-schema-row"><span className="sl-schema-t">{t}</span> ({data.tables[t].columns.join(', ')})</div>
+          ))}</div>
           <details className="sl-data">
             <summary className="sl-data-toggle"><Database size={14} /> Sample tables</summary>
             <div className="sl-data-tables">{(l.tables || Object.keys(data.tables)).map(t => <SqlTableSvg key={t} name={t} table={data.tables[t]} />)}</div>
