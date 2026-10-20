@@ -159,6 +159,115 @@ async function equations() {
   })
 }
 
+// ── SQL Lab (ict-quiz) ───────────────────────────────────────────────────────
+// Every lesson with all its steps shown, each version in its own block (sql.js switches them). The pictures size their
+// boxes from canvas-measured text, so they are drawn in Chrome, not in Node, with the same JetBrains Mono file Slate
+// ships — the measured widths then match what the WebView draws.
+async function sqlLab() {
+  const data = JSON.parse(fs.readFileSync(`${IQ}/src/data/sql/subquery.json`, 'utf8'))
+  const entry = `
+    import { createRoot } from 'react-dom/client'
+    import { flushSync } from 'react-dom'
+    import { BookOpen, Database, Eye, ListChecks, TriangleAlert } from 'lucide-react'
+    import SqlViz, { SqlTableSvg } from '${IQ}/src/components/sql/SqlViz.jsx'
+    import { highlightCode } from '${IQ}/src/lib/highlight.js'
+    import data from '${IQ}/src/data/sql/subquery.json'
+    const PHASE = { inner: 'INNER', rewrite: 'REPLACE', outer: 'OUTER', row: 'PER ROW', concept: 'IDEA' }
+    const Code = ({ code }) => <code className="sl-code-inline" dangerouslySetInnerHTML={{ __html: highlightCode(code, 'sql') }} />
+    const Query = ({ query }) => (
+      <div className="sl-editor">
+        <div className="sl-editor-bar"><span className="sl-dot" /><span className="sl-dot" /><span className="sl-dot" /><span className="sl-editor-name">query.sql</span></div>
+        <pre className="sl-editor-body">{query.split('\\n').map((l, i) => (
+          <div key={i} className="sl-line"><span className="sl-ln">{i + 1}</span><span className="sl-lc" dangerouslySetInnerHTML={{ __html: highlightCode(l, 'sql') || ' ' }} /></div>
+        ))}</pre>
+      </div>
+    )
+    const Step = ({ s, n }) => (
+      <section className={'sl-step sl-ph-' + s.phase}>
+        <div className="sl-step-rail"><span className="sl-step-num">{n}</span></div>
+        <div className="sl-step-body">
+          <div className="sl-step-head"><span className="sl-phase">{PHASE[s.phase]}</span><h3 className="sl-step-title">{s.label}</h3></div>
+          {s.sql && <div className="sl-step-sql"><Code code={s.sql} /></div>}
+          {s.pseudo && <pre className="sl-pseudo">{s.pseudo}</pre>}
+          {s.notes?.length > 0 && <ul className="sl-notes">{s.notes.map((t, i) => <li key={i}>{t}</li>)}</ul>}
+          <SqlViz viz={s.viz} />
+        </div>
+      </section>
+    )
+    function Lesson({ l, n, total, first }) {
+      const section = data.sections.find(s => s.id === l.section)
+      const vs = l.versions || [l]
+      return (
+        <article className="sl-lesson" data-lesson={l.id}>
+          <div className="sl-meta">
+            {l.kind === 'intro'
+              ? <span className="sl-count sl-count-intro"><BookOpen size={12} /> কীভাবে চলে</span>
+              : <span className="sl-count">QUERY {String(n).padStart(2, '0')} / {total}</span>}
+            <span className={'sl-level sl-lv-' + l.level}>{section?.title}</span>
+            <span className="sl-concept">{l.concept}</span>
+          </div>
+          <h1 className="sl-title">{l.title}</h1>
+          <div className="sl-question"><div className="sl-q-head"><span className="sl-q-label">Question</span></div><p>{l.question}</p></div>
+          <details className="sl-data">
+            <summary className="sl-data-toggle"><Database size={14} /> Sample tables</summary>
+            <div className="sl-data-tables">{(l.tables || Object.keys(data.tables)).map(t => <SqlTableSvg key={t} name={t} table={data.tables[t]} />)}</div>
+          </details>
+          {l.versions && (
+            <div className="sl-vers">{l.versions.map((v, i) => (
+              <button key={i} className={'sl-ver' + (i ? '' : ' is-on')} data-v={i}><span className="sl-ver-n">V{i + 1}</span> {v.label}</button>
+            ))}</div>
+          )}
+          {vs.map((v, k) => {
+            const traps = [...(v.trap || []), ...(l.versions ? l.trap || [] : [])]
+            return (
+              <div key={k} className="sl-version" data-v={k} hidden={k > 0}>
+                <Query query={v.query} />
+                <div className="sl-steps-head"><h2><ListChecks size={16} /> ধাপে ধাপে</h2></div>
+                <div className="sl-steps">{v.steps.map((s, i) => <Step key={i} s={s} n={i + 1} />)}</div>
+                <section className="sl-answer"><h2><Eye size={16} /> Final output</h2><SqlTableSvg table={v.answer} /></section>
+                {traps.length > 0 && <section className="sl-trap"><h2><TriangleAlert size={16} /> Exam trap</h2><ul>{traps.map((t, i) => <li key={i}>{t}</li>)}</ul></section>}
+              </div>
+            )
+          })}
+          {first && data.rules?.length > 0 && <section className="sl-rules"><h2>তিনটা নিয়ম মনে রাখো</h2><ol>{data.rules.map((r, i) => <li key={i}>{r}</li>)}</ol></section>}
+        </article>
+      )
+    }
+    let q = 0
+    const total = data.lessons.filter(l => l.kind !== 'intro').length
+    document.fonts.load("12px 'JetBrains Mono'").then(() => {
+      flushSync(() => createRoot(document.getElementById('sl')).render(
+        <>{data.lessons.map((l, i) => <Lesson key={l.id} l={l} n={l.kind === 'intro' ? null : ++q} total={total} first={i === 0} />)}</>
+      ))
+    })
+  `
+  const built = await esbuild.build({
+    stdin: { contents: entry, resolveDir: IQ, loader: 'jsx', sourcefile: 'sql-entry.jsx' },
+    bundle: true, platform: 'browser', format: 'iife', write: false, jsx: 'automatic', logLevel: 'error', minify: true,
+    nodePaths: [`${IQ}/node_modules`], loader: { '.js': 'jsx', '.css': 'empty' },
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const font = pathToFileURL(`${OUT}/web/fonts/jetbrains_mono_regular.ttf`).href
+  const script = `var st=document.createElement('style');st.textContent="@font-face{font-family:'JetBrains Mono';src:url(${font})}";document.head.appendChild(st);\n` +
+    built.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')
+  const dom = inChrome('<div id="sl"></div>', script)
+  const html = {}
+  for (const m of dom.matchAll(/<article class="sl-lesson" data-lesson="([^"]+)">([\s\S]*?)<\/article>/g)) html[m[1]] = m[2]
+  const missing = data.lessons.filter(l => !html[l.id]).map(l => l.id)
+  if (missing.length) throw new Error('SQL Lab: no markup for ' + missing.join(', '))
+  let q = 0
+  rows.ict.push({
+    kind: 'web', key: `sql_${data.topic}`, sort_order: 0,
+    payload: {
+      id: data.topic, name: data.name, sections: data.sections,
+      lessons: data.lessons.map(l => ({ id: l.id, kind: l.kind || 'query', section: l.section, title: l.title, concept: l.concept, n: l.kind === 'intro' ? null : ++q, versions: l.versions?.length || 1 })),
+      html,
+    },
+  })
+  const kb = Object.values(html).reduce((a, h) => a + h.length, 0) / 1024
+  console.log(`sql ${data.topic}: ${data.lessons.length} lessons (${q} queries), ${kb.toFixed(0)} KB`)
+}
+
 /** Reads KEY=value pairs from a web project's env files. */
 function envOf(project) {
   const env = {}
@@ -206,7 +315,7 @@ function katex() {
   css = css.replace(/,url\([^)]*\.woff\) format\("woff"\)/g, '').replace(/,url\([^)]*\.ttf\) format\("truetype"\)/g, '')
   fs.writeFileSync(`${OUT}/web/katex/katex.min.css`, css)
   for (const f of fs.readdirSync(`${dist}/fonts`).filter((f) => f.endsWith('.woff2'))) fs.copyFileSync(`${dist}/fonts/${f}`, `${OUT}/web/katex/fonts/${f}`)
-  for (const [name, file] of [['equation', `${IQ}/src/components/equation/equation.css`], ['mathformulas', `${GQ}/src/components/utility/MathFormulas.css`]]) {
+  for (const [name, file] of [['equation', `${IQ}/src/components/equation/equation.css`], ['mathformulas', `${GQ}/src/components/utility/MathFormulas.css`], ['sql', `${IQ}/src/components/sql/sql.css`]]) {
     // Slate's copies are adapted (e.g. equation diagrams fill the card), so an existing one is never overwritten.
     if (!fs.existsSync(`${OUT}/web/${name}.css`)) fs.copyFileSync(file, `${OUT}/web/${name}.css`)
   }
@@ -214,6 +323,6 @@ function katex() {
 }
 
 try {
-  await math(); await equations(); katex(); highlightScript()
+  await math(); await equations(); await sqlLab(); katex(); highlightScript()
   await publish('general', GQ); await publish('ict', IQ)
 } finally { fs.rmSync(TMP, { recursive: true, force: true }) }

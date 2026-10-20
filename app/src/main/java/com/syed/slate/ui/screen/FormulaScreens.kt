@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Visibility
@@ -238,6 +240,68 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
                 },
                 onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
             )
+        }
+    }
+}
+
+class SqlSection(val id: String, val title: String, val level: String)
+/** One SQL Lab lesson: a numbered query ([n] 1..), or an unnumbered "how it runs" intro ([n] null). */
+class SqlLesson(val id: String, val intro: Boolean, val section: String, val title: String, val concept: String, val n: Int?, val versions: Int)
+class SqlTopic(val id: String, val name: String, val sections: List<SqlSection>, val lessons: List<SqlLesson>, val html: JSONObject) {
+    val queries get() = lessons.count { !it.intro }
+}
+
+/** ICT » SQL Lab topics, from the rendered `web/sql_<topic>` rows the prerender tool publishes. */
+object SqlLabIndex {
+    fun topics(blobs: BlobRepository): List<SqlTopic> =
+        blobs.all("web").filter { it.first.startsWith("sql_") }.map { (_, o) ->
+            val s = o.getJSONArray("sections")
+            val l = o.getJSONArray("lessons")
+            SqlTopic(
+                o.getString("id"), o.getString("name"),
+                List(s.length()) { i -> s.getJSONObject(i).let { x -> SqlSection(x.getString("id"), x.getString("title"), x.optString("level")) } },
+                List(l.length()) { i ->
+                    l.getJSONObject(i).let { x ->
+                        SqlLesson(x.getString("id"), x.optString("kind") == "intro", x.optString("section"), x.getString("title"),
+                            x.optString("concept"), if (x.isNull("n")) null else x.getInt("n"), x.optInt("versions", 1))
+                    }
+                },
+                o.getJSONObject("html"),
+            )
+        }
+}
+
+/** Colour of a SQL Lab section's level (the web's easy / medium / hard). */
+@Composable
+fun sqlLevelColor(level: String): Color = LocalPalette.current.let { p -> when (level) { "easy" -> p.ok; "hard" -> p.bad; else -> p.warn } }
+
+/** ICT » SQL Lab » one lesson: every step, the output and the traps; a lesson solved two ways has a V1 / V2 switch. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val blobs = vm.module(ModuleId.ICT).blobs
+    val ver by blobs.version.collectAsState()
+    val topic = remember(ver, lessonId) { SqlLabIndex.topics(blobs).firstOrNull { t -> t.lessons.any { it.id == lessonId } } }
+    if (topic == null) { NotDownloaded("SQL Lab", onBack); return }
+    val p = LocalPalette.current
+    val i = topic.lessons.indexOfFirst { it.id == lessonId }
+    val lesson = topic.lessons[i]
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            SlateTopBar(
+                title = { BarTitle(if (lesson.intro) "কীভাবে চলে" else "Query %02d / %d".format(lesson.n, topic.queries), style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = {
+                    IconButton(onClick = { onOpen(topic.lessons[i - 1].id) }, enabled = i > 0) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous lesson") }
+                    IconButton(onClick = { onOpen(topic.lessons[i + 1].id) }, enabled = i < topic.lessons.size - 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next lesson") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+    ) { pad ->
+        Box(Modifier.fillMaxSize().padding(pad)) {
+            FormulaPage(PageKind.SQL, topic.html.getString(lesson.id), p, p.isDark, cover = false)
         }
     }
 }

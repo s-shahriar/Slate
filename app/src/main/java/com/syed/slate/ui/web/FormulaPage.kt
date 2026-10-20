@@ -31,9 +31,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Which pre-rendered page, and which wrapper its stylesheet expects. */
-enum class PageKind(val css: List<String>, val open: String, val close: String, val highlights: Boolean = false) {
+enum class PageKind(val css: List<String>, val open: String, val close: String, val highlights: Boolean = false, val script: String? = null) {
     MATH(listOf("mathformulas.css"), """<div class="mf-root"><div class="mf-wrap mf-cover-on">""", "</div></div>"),
     EQUATION(listOf("equation.css"), """<div class="eq-page">""", "</div>", highlights = true),
+    /** One SQL Lab lesson; sql.js switches between its versions. */
+    SQL(listOf("sql.css"), """<div class="sl-root"><main class="sl-main">""", "</main></div>", script = "sql.js"),
 }
 
 private fun hex(c: Color) = "#%06X".format(c.toArgb() and 0xFFFFFF)
@@ -48,7 +50,11 @@ internal fun themeVariables(p: Palette, dark: Boolean): String = buildString {
     v("border", rgba(p.text, if (dark) .08f else .07f)); v("border-md", rgba(p.text, if (dark) .13f else .10f)); v("border-bright", rgba(p.primary, .45f))
     v("accent", hex(p.primary)); v("accent-2", hex(p.primary)); v("accent-light", rgba(p.primary, .14f)); v("on-accent", hex(p.onPrimary))
     v("imp", hex(p.imp)); v("imp-tint", rgba(p.imp, .12f)); v("ok", hex(p.ok)); v("ok-tint", rgba(p.ok, .12f))
-    v("warn", hex(p.warn)); v("bad", hex(p.bad)); v("info", hex(p.info))
+    v("warn", hex(p.warn)); v("bad", hex(p.bad)); v("info", hex(p.info)); v("warn-tint", rgba(p.warn, .14f))
+    // Code and badge tokens the SQL Lab stylesheet uses (ict-quiz index.css names).
+    v("on-solid", hex(p.onPrimary)); v("code-bg", if (dark) hex(p.bg) else hex(p.elevated)); v("code-text", hex(p.text))
+    v("shadow-md", if (dark) "0 2px 10px rgba(0,0,0,.30)" else "0 2px 10px rgba(19,32,41,.06)"); v("grad-brand", hex(p.primary))
+    v("sx-kw", hex(p.primary)); v("sx-str", hex(p.ok)); v("sx-num", hex(p.warn)); v("sx-cm", hex(p.text3)); v("sx-fn", hex(TopicColors.of(6, dark)))
     v("hover-bg", rgba(p.primary, .07f)); v("surface-glass", rgba(p.surface, .97f)); v("shadow-sm", "0 1px 2px rgba(0,0,0,.05)")
     v("font-body", "'Inter','Noto Sans Bengali',system-ui,sans-serif"); v("font-display", "'Plus Jakarta Sans','Noto Sans Bengali',system-ui,sans-serif")
     for (n in 1..12) v("topic-$n", hex(TopicColors.of(n, dark)))
@@ -67,6 +73,7 @@ private fun buildPage(kind: PageKind, body: String, p: Palette, dark: Boolean, c
         append("</head><body>").append(kind.open).append(body).append(kind.close)
         append("<script>$init</script><script src=\"controller.js\"></script>")
         if (kind.highlights) append("<script src=\"highlight.js\"></script>")
+        kind.script?.let { append("<script src=\"$it\"></script>") }
         append("</body></html>")
     }
 }

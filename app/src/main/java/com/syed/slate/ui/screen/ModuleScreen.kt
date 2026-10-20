@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Spellcheck
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
@@ -128,12 +129,14 @@ class ModuleNav(
     val onMath: () -> Unit,
     val onFinance: () -> Unit,
     val onEquation: (String) -> Unit,
+    val onSql: (String) -> Unit = {},
     val onAdmin: () -> Unit = {},
 )
 
 /** Section keys that are not database groups. */
 private const val PRACTICE = "practice"
 private const val EQUATION = "equation"
+private const val SQL = "sql"
 private const val WRITTEN = "written"
 private const val UTILITY = "utility"
 
@@ -238,16 +241,18 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
     val inUtility = id == ModuleId.GENERAL && section == UTILITY
     val inPractice = id == ModuleId.ICT && section == PRACTICE
     val inEquation = id == ModuleId.ICT && section == EQUATION
+    val inSql = id == ModuleId.ICT && section == SQL
     val app = LocalContext.current.applicationContext as SlateApp
     val blobVer by app.module(ModuleId.ICT).blobs.version.collectAsState()
     val equationTopics = remember(blobVer) { FormulaIndex.equationTopics(app.module(ModuleId.ICT).blobs).map { it.first } }
+    val sqlTopics = remember(blobVer) { SqlLabIndex.topics(app.module(ModuleId.ICT).blobs) }
     val practiceCats = remember(blobVer) { app.practice }
     val practiceFlags = remember(flags) { flags.filter { it.key.startsWith("practice__") } }
     val group = content.groups.firstOrNull { it.key == section }
     val groupItems = remember(content, group) { group?.topics?.flatMap { content.items(group.key, it.slug) }.orEmpty().filter { it.isQuizzable || LongForm.isLongForm(it) } }
     val counts = remember(groupItems, flags) { QuizPool.counts(groupItems, flags, includeLongForm = true) }
     val topicNames = remember(group) { group?.topics?.associate { it.slug to it.name }.orEmpty() }
-    val quizzableGroup = group != null && !inUtility && !inPractice && !inEquation
+    val quizzableGroup = group != null && !inUtility && !inPractice && !inEquation && !inSql
 
     var query by rememberSaveable(selected) { mutableStateOf("") }
     var debounced by rememberSaveable(selected) { mutableStateOf("") }
@@ -275,7 +280,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 Column {
                     Text(subModuleTitle(id, section), style = MaterialTheme.typography.titleLarge)
                     Text(
-                        sectionCount?.let { "$it questions" }.orEmpty(),
+                        if (inSql) sqlTopics.sumOf { it.queries }.let { n -> "$n queries" } else sectionCount?.let { "$it questions" }.orEmpty(),
                         style = MaterialTheme.typography.labelMedium, color = p.text3,
                     )
                 }
@@ -317,6 +322,30 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                         Text("${c.topics.size} topics · ${c.topics.sumOf { t -> t.practice.size }} drills", style = MaterialTheme.typography.labelMedium, color = p.text3)
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
+                }
+            }
+        } else if (inSql) {
+            // The web's lesson rail: each section's "how it runs" intro (book icon, no number), then its numbered queries.
+            sqlTopics.forEach { t ->
+                t.sections.forEach { sec ->
+                    item(key = "sql-${t.id}-${sec.id}") {
+                        Text(sec.title, Modifier.padding(top = 8.dp, start = 4.dp), style = MaterialTheme.typography.labelLarge, color = sqlLevelColor(sec.level))
+                    }
+                    items(t.lessons.filter { it.section == sec.id }, key = { "sql-${t.id}-${it.id}" }) { l ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onSql(l.id) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            if (l.intro) Icon(Icons.AutoMirrored.Filled.MenuBook, null, Modifier.size(20.dp), tint = p.text3)
+                            else Text("%02d".format(l.n), style = MaterialTheme.typography.labelLarge, color = sqlLevelColor(sec.level))
+                            Column(Modifier.weight(1f)) {
+                                Text(l.title, style = MaterialTheme.typography.titleMedium, color = if (l.intro) p.text2 else MaterialTheme.colorScheme.onSurface)
+                                Text(if (l.versions > 1) "${l.concept} · ${l.versions} versions" else l.concept, style = MaterialTheme.typography.labelMedium, color = p.text3)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
+                        }
+                    }
                 }
             }
         } else if (inEquation) {
@@ -405,13 +434,14 @@ private fun sectionIcon(id: ModuleId, key: String): ImageVector = when (key) {
     UTILITY -> Icons.Filled.Build
     EQUATION -> Icons.Filled.Functions
     PRACTICE -> Icons.Filled.Code
+    SQL -> Icons.Filled.Storage
     else -> Icons.Filled.EditNote // written
 }
 
 private fun subModuleTitle(id: ModuleId, key: String): String = when (key) {
     "bangla" -> "বাংলা ব্যাকরণ"; "english" -> "English Grammar"; "sahitya" -> "বাংলা সাহিত্য"
     "gk" -> "সাধারণ জ্ঞান"; "livemcq" -> "LiveMCQ"; WRITTEN -> "Written"; "vocab" -> "Vocabulary"; UTILITY -> "Utility"
-    EQUATION -> "Equation"; PRACTICE -> "Practice"
+    EQUATION -> "Equation"; PRACTICE -> "Practice"; SQL -> "SQL Lab"
     else -> TopicCatalog.groupTitle(key)
 }
 
@@ -420,7 +450,7 @@ private fun subModuleTagline(id: ModuleId, key: String): String? = when (key) {
     "gk" -> "Bangladesh, world & current affairs"; "livemcq" -> "Live-exam favourites by topic"; WRITTEN -> "Notes & written answers"
     "vocab" -> "Words, meanings & usage"; UTILITY -> "Formulas & financial terms"
     "mcq" -> "Objective questions by topic"; "written" -> "Long answers & explanations"; "extra" -> "Extra questions & notes"
-    "viva" -> "Oral questions & answers"; EQUATION -> "Cover & recall formulas"; PRACTICE -> "Linux & SQL command drills"
+    "viva" -> "Oral questions & answers"; EQUATION -> "Cover & recall formulas"; PRACTICE -> "Linux & SQL command drills"; SQL -> "Subqueries step by step"
     else -> null
 }
 
@@ -433,7 +463,7 @@ private fun SubModuleLauncher(id: ModuleId, content: ModuleContent, onOpen: (Str
         listOf("bangla", "english", "sahitya", "gk", "livemcq").filter { groupKeys.contains(it) } +
             listOf(WRITTEN) + (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(UTILITY)
     } else {
-        listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE)
+        listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE, SQL)
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         keys.chunked(2).forEach { row ->

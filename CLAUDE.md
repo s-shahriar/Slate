@@ -77,6 +77,10 @@ Three scopes in `ui/theme/Palette.kt`: `SHELL` (rust, the Slate home/settings), 
    answer matching (ported exactly; flag ids `practice__<cat>__<topic>__<cmd>` match the web), Important list across both. It is a virtual
    "Practice" group on the ICT module screen.
    Equation is done too (`ui/web`, `FormulaScreens`): a virtual "Equation" group on ICT, cover-and-recall. Still to do: highlights.
+   SQL Lab (0.7.4): a virtual "SQL Lab" card on ICT (`ModuleScreen` SQL section = the web's lesson rail: section headers, unnumbered
+   "how it runs" intros with a book icon, numbered queries). A lesson opens in `SqlLessonScreen` (`FormulaPage` kind `SQL`, prev/next in
+   the top bar); its pre-rendered markup comes from `web/sql_<topic>` (`SqlLabIndex`). Every step is shown; a query solved two ways has
+   V1/V2 buttons that `assets/web/sql.js` switches. Not yet: highlights/notes on SQL lessons.
 5. ✅ Highlights, recycle bin, left/right-hand layout. Next: mobile extras (reminders, streaks, spaced repetition, timed exams).
 
 ## Pre-rendered pages (math formulas, equations) and `content_blobs`
@@ -86,7 +90,8 @@ script-light `WebView` (`ui/web/FormulaPage.kt`: no network, no file access, JS 
 the app needs none of it). The tool bundles the web components with esbuild (stubbing their app-only imports), renders them with cover mode
 forced ON, lets headless Chrome run the web's own uid code to tag each math card with `data-uid` (`m<hash>`), and copies KaTeX CSS/fonts.
 `controller.js` switches cover mode on/off, reveals one element per tap, and bridges stars to Slate. Theme tokens are injected from the
-active palette. Re-run the tool whenever the web apps change those pages. Equation highlights will need the web's DOM anchoring ported
+active palette. Re-run the tool whenever the web apps change those pages. SQL Lab lessons are drawn in Chrome (not Node): their SVG boxes are sized
+from canvas-measured text, so the tool loads Slate's own `jetbrains_mono_regular.ttf` first and the widths match the WebView. Equation highlights will need the web's DOM anchoring ported
 into the WebView (blocks are already tagged `data-hl-block`).
 
 ## Highlights, recycle bin, hand layout
@@ -198,7 +203,7 @@ into the WebView (blocks are already tagged `data-hl-block`).
 Each Supabase project has `content_blobs(kind, key, sort_order, payload jsonb, updated_at)`; public read, writes via service role,
 a trigger bumps `updated_at`. `content/BlobRepository` caches the whole table in `filesDir/blobs_<module>.json` and refreshes by an
 `updated_at` probe (only changed rows are fetched) on module open / the Refresh button. The UI reads only the cache; a first launch
-needs a connection (no bundled fallback). Kinds: ICT `practice`, `equation` (data, unused by Slate), `web/equation_<topic>`;
+needs a connection (no bundled fallback). Kinds: ICT `practice`, `equation` (data, unused by Slate), `web/equation_<topic>`, `sql_lesson` (data, unused by Slate), `web/sql_<topic>`;
 General `utility/finance`, `web/math`. `web/*` rows are the rendered pages the prerender tool publishes (`FormulaIndex`).
 Nothing under `assets/practice`, `assets/utility` or the `*.body.html` files exists any more; only css/js/fonts are bundled.
 Authoring: Practice + equation data via `ict-quiz/scripts/sync-static.mjs`, finance via `general-quiz/scripts/sync-static.mjs`,
