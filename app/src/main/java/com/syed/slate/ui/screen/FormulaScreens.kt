@@ -306,9 +306,21 @@ fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, on
         },
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
+            // Highlights: the web's user_highlights rows and block keys (`question`, `s2.note0`, `v2.trap1`…) on this lesson's uid.
+            val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
+            val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
+            val onPage = remember(saved, uid) { saved.filterKeys { it == uid } }
+            val owner = remember { Any() }
+            var clearNonce by remember { mutableIntStateOf(0) }
             FormulaPage(PageKind.SQL, topic.html.getString(lesson.id), p, p.isDark, cover = false,
                 preferred = preferred,
-                onPrefer = { v -> if (uid != null) progress.update(uid) { it.copy(preferred = v) } })
+                onPrefer = { v -> if (uid != null) progress.update(uid) { it.copy(preferred = v) } },
+                highlights = onPage, clearSelectionNonce = clearNonce,
+                onSelection = { u, anchors ->
+                    ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
+                    else com.syed.slate.ui.highlight.HlTarget.Add(owner, u, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
+                },
+                onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } })
         }
     }
 }

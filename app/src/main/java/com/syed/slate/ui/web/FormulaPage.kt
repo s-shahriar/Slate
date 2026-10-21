@@ -35,7 +35,7 @@ enum class PageKind(val css: List<String>, val open: String, val close: String, 
     MATH(listOf("mathformulas.css"), """<div class="mf-root"><div class="mf-wrap mf-cover-on">""", "</div></div>"),
     EQUATION(listOf("equation.css"), """<div class="eq-page">""", "</div>", highlights = true),
     /** One SQL Lab lesson; sql.js switches between its versions. */
-    SQL(listOf("sql.css"), """<div class="sl-root"><main class="sl-main">""", "</main></div>", script = "sql.js"),
+    SQL(listOf("sql.css"), """<div class="sl-root"><main class="sl-main">""", "</main></div>", highlights = true, script = "sql.js"),
 }
 
 private fun hex(c: Color) = "#%06X".format(c.toArgb() and 0xFFFFFF)

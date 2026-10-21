@@ -83,7 +83,7 @@ Three scopes in `ui/theme/Palette.kt`: `SHELL` (rust, the Slate home/settings), 
    V1/V2 buttons that `assets/web/sql.js` switches. Each tab has a star (0.7.6): the preferred version is
    `user_progress.preferred` (0 = V1) on the lesson uid `Uid.ict("sql", "<topic> / <lesson id>")`, the same row/column the web
    uses; `Flag.preferred`, bridge `Slate.prefer(v)`, `setPreferred(v)`; the page opens on it. `assets/web/sql.css` is an adapted
-   copy the prerender never overwrites: mirror every ict-quiz `sql.css` change into it by hand. Not yet: highlights/notes on SQL lessons.
+   copy the prerender never overwrites: mirror every ict-quiz `sql.css` change into it by hand. Highlights (0.7.7): the lesson markup carries `data-hl-root` (lesson uid) and the web's `data-hl-block` keys (`question`, `sN.noteI`, `sN.pseudo`, `trapI`, `v2.` prefix), painted by `highlight.js` like the Equation pages. Not yet: notes on SQL lessons.
 5. ✅ Highlights, recycle bin, left/right-hand layout. Next: mobile extras (reminders, streaks, spaced repetition, timed exams).
 
 ## Pre-rendered pages (math formulas, equations) and `content_blobs`

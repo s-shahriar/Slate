@@ -172,6 +172,7 @@ async function sqlLab() {
     import SqlViz, { SqlTableSvg } from '${IQ}/src/components/sql/SqlViz.jsx'
     import { highlightCode } from '${IQ}/src/lib/highlight.js'
     import data from '${IQ}/src/data/sql/subquery.json'
+    import { uidFor } from '${IQ}/src/lib/qid.js'
     const PHASE = { inner: 'INNER', rewrite: 'REPLACE', outer: 'OUTER', row: 'PER ROW', concept: 'IDEA' }
     const Code = ({ code }) => <code className="sl-code-inline" dangerouslySetInnerHTML={{ __html: highlightCode(code, 'sql') }} />
     const Query = ({ query }) => (
@@ -182,14 +183,15 @@ async function sqlLab() {
         ))}</pre>
       </div>
     )
-    const Step = ({ s, n }) => (
+    // data-hl-block keys are the web's (SqlMode.jsx), so highlights made on either side land on the same text.
+    const Step = ({ s, n, vp }) => (
       <section className={'sl-step sl-ph-' + s.phase}>
         <div className="sl-step-rail"><span className="sl-step-num">{n}</span></div>
         <div className="sl-step-body">
           <div className="sl-step-head"><span className="sl-phase">{PHASE[s.phase]}</span><h3 className="sl-step-title">{s.label}</h3></div>
           {s.sql && <div className="sl-step-sql"><Code code={s.sql} /></div>}
-          {s.pseudo && <pre className="sl-pseudo">{s.pseudo}</pre>}
-          {s.notes?.length > 0 && <ul className="sl-notes">{s.notes.map((t, i) => <li key={i}>{t}</li>)}</ul>}
+          {s.pseudo && <pre className="sl-pseudo" data-hl-block={vp + 's' + n + '.pseudo'}>{s.pseudo}</pre>}
+          {s.notes?.length > 0 && <ul className="sl-notes">{s.notes.map((t, i) => <li key={i}><span data-hl-block={vp + 's' + n + '.note' + i}>{t}</span></li>)}</ul>}
           <SqlViz viz={s.viz} layout="v" />
         </div>
       </section>
@@ -198,7 +200,7 @@ async function sqlLab() {
       const section = data.sections.find(s => s.id === l.section)
       const vs = l.versions || [l]
       return (
-        <article className="sl-lesson" data-lesson={l.id}>
+        <article className="sl-lesson" data-lesson={l.id} data-hl-root={uidFor('sql', data.topic + ' / ' + l.id)}>
           <div className="sl-meta">
             {l.kind === 'intro'
               ? <span className="sl-count sl-count-intro"><BookOpen size={12} /> কীভাবে চলে</span>
@@ -207,7 +209,7 @@ async function sqlLab() {
             <span className="sl-concept">{l.concept}</span>
           </div>
           <h1 className="sl-title">{l.title}</h1>
-          <div className="sl-question"><div className="sl-q-head"><span className="sl-q-label">Question</span></div><p>{l.question}</p></div>
+          <div className="sl-question"><div className="sl-q-head"><span className="sl-q-label">Question</span></div><p data-hl-block="question">{l.question}</p></div>
           <div className="sl-schema">{(l.tables || Object.keys(data.tables)).map(t => (
             <div key={t} className="sl-schema-row"><span className="sl-schema-t">{t}</span> ({data.tables[t].columns.join(', ')})</div>
           ))}</div>
@@ -225,13 +227,14 @@ async function sqlLab() {
           )}
           {vs.map((v, k) => {
             const traps = [...(v.trap || []), ...(l.versions ? l.trap || [] : [])]
+            const vp = l.versions && k ? 'v' + (k + 1) + '.' : ''
             return (
               <div key={k} className="sl-version" data-v={k} hidden={k > 0}>
                 <Query query={v.query} />
                 <div className="sl-steps-head"><h2><ListChecks size={16} /> ধাপে ধাপে</h2></div>
-                <div className="sl-steps">{v.steps.map((s, i) => <Step key={i} s={s} n={i + 1} />)}</div>
+                <div className="sl-steps">{v.steps.map((s, i) => <Step key={i} s={s} n={i + 1} vp={vp} />)}</div>
                 <section className="sl-answer"><h2><Eye size={16} /> Final output</h2><SqlTableSvg table={v.answer} /></section>
-                {traps.length > 0 && <section className="sl-trap"><h2><TriangleAlert size={16} /> Exam trap</h2><ul>{traps.map((t, i) => <li key={i}>{t}</li>)}</ul></section>}
+                {traps.length > 0 && <section className="sl-trap"><h2><TriangleAlert size={16} /> Exam trap</h2><ul>{traps.map((t, i) => <li key={i}><span data-hl-block={vp + 'trap' + i}>{t}</span></li>)}</ul></section>}
               </div>
             )
           })}
@@ -258,7 +261,8 @@ async function sqlLab() {
     built.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')
   const dom = inChrome('<div id="sl"></div>', script)
   const html = {}
-  for (const m of dom.matchAll(/<article class="sl-lesson" data-lesson="([^"]+)">([\s\S]*?)<\/article>/g)) html[m[1]] = m[2]
+  // Each lesson keeps its <article> (it carries data-hl-root, the lesson's highlight uid).
+  for (const m of dom.matchAll(/<article class="sl-lesson" data-lesson="([^"]+)"[^>]*>[\s\S]*?<\/article>/g)) html[m[1]] = m[0]
   const missing = data.lessons.filter(l => !html[l.id]).map(l => l.id)
   if (missing.length) throw new Error('SQL Lab: no markup for ' + missing.join(', '))
   let q = 0
