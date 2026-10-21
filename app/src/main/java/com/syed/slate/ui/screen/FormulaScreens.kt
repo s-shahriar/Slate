@@ -286,6 +286,11 @@ fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, on
     val p = LocalPalette.current
     val i = topic.lessons.indexOfFirst { it.id == lessonId }
     val lesson = topic.lessons[i]
+    // Same uid the web keys this lesson's note and preferred version by: uidFor('sql', '<topic> / <lesson id>').
+    val progress = vm.module(ModuleId.ICT).progress
+    val flags by progress.flags.collectAsState()
+    val uid = remember(topic.id, lesson.id) { com.syed.slate.core.Uid.ict("sql", "${topic.id} / ${lesson.id}") }
+    val preferred = uid?.let { flags[it]?.preferred }?.takeIf { it < lesson.versions }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -301,7 +306,9 @@ fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, on
         },
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
-            FormulaPage(PageKind.SQL, topic.html.getString(lesson.id), p, p.isDark, cover = false)
+            FormulaPage(PageKind.SQL, topic.html.getString(lesson.id), p, p.isDark, cover = false,
+                preferred = preferred,
+                onPrefer = { v -> if (uid != null) progress.update(uid) { it.copy(preferred = v) } })
         }
     }
 }

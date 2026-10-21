@@ -196,6 +196,18 @@
 .sl-ver.is-on { background: var(--sl-surface); color: var(--sl-ink); font-weight: 600; box-shadow: var(--sl-shadow); }
 .sl-ver.is-on .sl-ver-n { background: var(--sl-outer); color: var(--sl-on); }
 
+/* preferred version: a star on each tab; the starred one is filled and its tab carries a tint */
+.sl-ver { cursor: pointer; }
+.sl-ver-label { min-width: 0; }
+.sl-pref {
+  flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; margin: -5px -6px -5px auto;
+  border: 0; border-radius: 8px; background: transparent; color: var(--sl-ink-3); opacity: .75; -webkit-tap-highlight-color: transparent;
+}
+.sl-ver.is-pref .sl-pref { color: var(--sl-rewrite); opacity: 1; }
+.sl-ver.is-pref .sl-pref svg { fill: currentColor; }
+.sl-ver.is-pref { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sl-rewrite) 55%, transparent); }
+.sl-ver.is-on.is-pref { box-shadow: var(--sl-shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--sl-rewrite) 55%, transparent); }
+
 /* ── query editor ────────────────────────────────────────── */
 .sl-editor {
   background: var(--sl-editor); color: var(--sl-editor-ink); border-radius: 12px; overflow: hidden;
@@ -263,10 +275,11 @@
 .sl-step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .sl-phase { font-family: var(--sl-mono); font-size: 10.5px; letter-spacing: .14em; color: var(--ph); }
 .sl-step-title { margin: 0; font-size: 16.5px; font-weight: 650; line-height: 1.45; }
-.sl-step-sql { margin: 8px 0 4px; overflow-x: auto; }
+.sl-step-sql { margin: 8px 0 4px; }
 .sl-code-inline {
   display: inline-block; font-family: var(--sl-mono); font-size: 13px; line-height: 1.6;
-  padding: 5px 10px; border-radius: 8px; background: var(--sl-chip); color: var(--sl-editor-ink); white-space: pre;
+  padding: 5px 10px; border-radius: 8px; background: var(--sl-chip); color: var(--sl-editor-ink);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; box-sizing: border-box;   /* wrap, never scroll sideways */
 }
 .sl-code-inline .token.keyword { color: var(--sx-kw); font-weight: 600; }
 .sl-code-inline .token.function { color: var(--sx-fn); }
@@ -345,14 +358,14 @@
   border: 1px solid var(--sl-line); box-shadow: var(--sl-shadow);
 }
 .sl-answer { border-top: 3px solid var(--sl-keep); }
-.sl-answer .sl-viz { margin: 12px 0 0; }
+.sl-answer .sl-viz { margin: 12px auto 0; }
 .sl-trap { border-top: 3px solid var(--sl-rewrite); }
 .sl-trap ul, .sl-rules ol { margin: 8px 0 0; padding-left: 20px; color: var(--sl-ink-2); }
 .sl-trap li::marker { color: var(--sl-rewrite); }
 
 .sl-rules { border-top: 3px solid var(--sl-concept); }
 .sl-alt { border-top: 3px solid var(--sl-rewrite); }
-.sl-alt-code { margin: 8px 0; overflow-x: auto; }
+.sl-alt-code { margin: 8px 0; }
 .sl-alt-note { margin: 4px 0 10px; color: var(--sl-ink-2); }
 .sl-alt .sl-viz { margin-top: 4px; }
 .sl-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }

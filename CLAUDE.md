@@ -80,7 +80,10 @@ Three scopes in `ui/theme/Palette.kt`: `SHELL` (rust, the Slate home/settings), 
    SQL Lab (0.7.4): a virtual "SQL Lab" card on ICT (`ModuleScreen` SQL section = the web's lesson rail: section headers, unnumbered
    "how it runs" intros with a book icon, numbered queries). A lesson opens in `SqlLessonScreen` (`FormulaPage` kind `SQL`, prev/next in
    the top bar); its pre-rendered markup comes from `web/sql_<topic>` (`SqlLabIndex`). Every step is shown; a query solved two ways has
-   V1/V2 buttons that `assets/web/sql.js` switches. Not yet: highlights/notes on SQL lessons.
+   V1/V2 buttons that `assets/web/sql.js` switches. Each tab has a star (0.7.6): the preferred version is
+   `user_progress.preferred` (0 = V1) on the lesson uid `Uid.ict("sql", "<topic> / <lesson id>")`, the same row/column the web
+   uses; `Flag.preferred`, bridge `Slate.prefer(v)`, `setPreferred(v)`; the page opens on it. `assets/web/sql.css` is an adapted
+   copy the prerender never overwrites: mirror every ict-quiz `sql.css` change into it by hand. Not yet: highlights/notes on SQL lessons.
 5. ✅ Highlights, recycle bin, left/right-hand layout. Next: mobile extras (reminders, streaks, spaced repetition, timed exams).
 
 ## Pre-rendered pages (math formulas, equations) and `content_blobs`

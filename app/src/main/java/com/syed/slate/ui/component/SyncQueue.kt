@@ -167,7 +167,7 @@ fun SyncQueueSheet(m: ModuleServices, online: Boolean, onDismiss: () -> Unit) {
         rows += SyncRow(
             "q-${c.uid}", if (failedFlags) RowState.FAILED else RowState.WAITING, d.icon, d.tint, text, d.text, topic, c.at, 0,
             error = if (failedFlags) progressError else null, attempts = attempts,
-            undoable = flagUndoable(c.patch, c.uid, flags).takeIf { c.patch.keys.any { k -> k != "note" } },
+            undoable = flagUndoable(c.patch, c.uid, flags).takeIf { c.patch.keys.any { k -> k != "note" && k != "preferred" } },
         ) { m.progress.undoQueued(c) }
     }
     for ((id, op) in trashOps) {
@@ -192,7 +192,7 @@ fun SyncQueueSheet(m: ModuleServices, online: Boolean, onDismiss: () -> Unit) {
         val d = describeFlag(p, c.patch)
         rows += SyncRow(
             "d-${c.uid}-${c.syncedAt}", RowState.SYNCED, d.icon, d.tint, text, d.text, topic, c.at, c.syncedAt,
-            undoable = flagUndoable(c.patch, c.uid, flags).takeIf { c.patch.keys.any { k -> k != "note" } },
+            undoable = flagUndoable(c.patch, c.uid, flags).takeIf { c.patch.keys.any { k -> k != "note" && k != "preferred" } },
         ) { m.progress.undoQueued(ProgressRepository.QueuedChange(c.uid, c.patch, c.at)) }
     }
     for (r in hlDone) {
@@ -378,6 +378,11 @@ private fun describeFlag(p: com.syed.slate.ui.theme.Palette, patch: Map<String, 
     if (weak == true) parts += "Marked weak"
     if (important != null) parts += if (important) "Marked important" else "Unmarked important"
     if (weak == false) parts += "Unmarked weak"
+    if (patch.containsKey("preferred")) {
+        val v = (patch["preferred"] as? Number)?.toInt()
+        return Look(if (v != null) Icons.Filled.Star else Icons.Filled.StarBorder, if (v != null) p.warn else p.text3,
+            if (v != null) "Preferred V${v + 1}" else "Preferred version cleared")
+    }
     val text = parts.joinToString(" · ").ifEmpty { "Note saved" }
     return when {
         nailed != null -> Look(if (nailed) Icons.Filled.Star else Icons.Filled.StarBorder, if (nailed) p.ok else p.text3, text)

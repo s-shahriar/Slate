@@ -9,8 +9,10 @@ data class Flag(
     val important: Boolean = false,
     val weak: Boolean = false,
     val note: String? = null,
+    /** SQL Lab: the version of a lesson the user prefers (0 = V1), or null. Column `user_progress.preferred`. */
+    val preferred: Int? = null,
 ) {
-    val isBlank get() = !nailed && !important && !weak && note == null
+    val isBlank get() = !nailed && !important && !weak && note == null && preferred == null
 }
 
 /** The web apps' rules, so a flag set on the phone means the same thing in the browser. */
@@ -33,6 +35,7 @@ object FlagRules {
         if (old.important != new.important) put("important", new.important)
         if (old.weak != new.weak) put("weak", new.weak)
         if (old.note != new.note) put("note", new.note)
+        if (old.preferred != new.preferred) put("preferred", new.preferred)
     }
 
     fun apply(f: Flag, patch: Map<String, Any?>) = Flag(
@@ -40,6 +43,7 @@ object FlagRules {
         important = patch["important"] as? Boolean ?: f.important,
         weak = patch["weak"] as? Boolean ?: f.weak,
         note = if (patch.containsKey("note")) patch["note"] as String? else f.note,
+        preferred = if (patch.containsKey("preferred")) (patch["preferred"] as? Number)?.toInt() else f.preferred,
     )
 }
 

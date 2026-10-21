@@ -106,11 +106,12 @@ class ProgressRepository(
         "nailed" in patch -> if (patch["nailed"] == true) "Nailed it" else "Un-nailed"
         "important" in patch -> if (patch["important"] == true) "Marked important" else "Removed important"
         "weak" in patch -> if (patch["weak"] == true) "Marked weak" else "Removed weak"
+        "preferred" in patch -> (patch["preferred"] as? Number)?.let { "Preferred V${it.toInt() + 1}" } ?: "Preferred version cleared"
         else -> "Note saved"
     }
 
     /** Notes cannot be inverted (the previous text is unknown), so note-only entries offer no undo. */
-    fun undoable(patch: Map<String, Any?>) = patch.keys.any { it != "note" }
+    fun undoable(patch: Map<String, Any?>) = patch.keys.any { it != "note" && it != "preferred" }
 
     fun flag(uid: String): Flag = _flags.value[uid] ?: Flag()
 
@@ -165,6 +166,7 @@ class ProgressRepository(
         "weak" in patch -> if (new.weak) "Weak করা হলো" else "Weak সরানো হলো"
         "nailed" in patch -> if (new.nailed) "Nailed it" else "Un-nailed"
         "important" in patch -> if (new.important) "Important করা হলো" else "Important সরানো হলো"
+        "preferred" in patch -> new.preferred?.let { "V${it + 1} পছন্দের করা হলো" } ?: "পছন্দ সরানো হলো"
         else -> "নোট সেভ হলো"
     }
 
@@ -176,13 +178,14 @@ class ProgressRepository(
     suspend fun pull() {
         if (auth.session.value == null) return
         val startGen = synchronized(io) { flushGen }
-        val rows = db.selectAll("user_progress", "select=uid,nailed,important,weak,note&order=uid")
+        val rows = db.selectAll("user_progress", "select=uid,nailed,important,weak,note,preferred&order=uid")
         synchronized(io) {
             val server = HashMap<String, Flag>()
             for (r in rows) {
                 val f = Flag(
                     r.optBoolean("nailed"), r.optBoolean("important"), r.optBoolean("weak"),
                     if (r.isNull("note")) null else r.optString("note").ifEmpty { null },
+                    if (r.isNull("preferred")) null else r.optInt("preferred"),
                 )
                 if (!f.isBlank) server[r.getString("uid")] = f
             }
@@ -245,7 +248,7 @@ class ProgressRepository(
     private fun persist() {
         flagFile.writeAtomic(JSONObject().also { o ->
             _flags.value.forEach { (uid, f) ->
-                o.put(uid, JSONObject().put("n", f.nailed).put("i", f.important).put("w", f.weak).put("t", f.note ?: JSONObject.NULL))
+                o.put(uid, JSONObject().put("n", f.nailed).put("i", f.important).put("w", f.weak).put("t", f.note ?: JSONObject.NULL).put("p", f.preferred ?: JSONObject.NULL))
             }
         }.toString())
         val snap = pending.snapshot()
@@ -261,7 +264,8 @@ class ProgressRepository(
     private fun readFlags(): Map<String, Flag> = runCatching {
         val o = JSONObject(flagFile.readText())
         o.keys().asSequence().associateWith { uid ->
-            o.getJSONObject(uid).let { Flag(it.optBoolean("n"), it.optBoolean("i"), it.optBoolean("w"), if (it.isNull("t")) null else it.optString("t")) }
+            o.getJSONObject(uid).let { Flag(it.optBoolean("n"), it.optBoolean("i"), it.optBoolean("w"), if (it.isNull("t")) null else it.optString("t"),
+                if (!it.has("p") || it.isNull("p")) null else it.optInt("p")) }
         }
     }.getOrDefault(emptyMap())
 

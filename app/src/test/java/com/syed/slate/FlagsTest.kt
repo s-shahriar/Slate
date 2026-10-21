@@ -64,4 +64,22 @@ class FlagsTest {
         assertEquals(2, b.size)
         assertEquals(listOf(2, 1), b.map { it.length() }.sortedDescending())
     }
+
+    @Test fun preferredVersionRoundTrips() {
+        val set = FlagRules.diff(Flag(), Flag(preferred = 1))
+        assertEquals(mapOf("preferred" to 1), set)
+        val applied = FlagRules.apply(Flag(important = true), set)
+        assertEquals(1, applied.preferred)
+        assertTrue(applied.important)
+        // Clearing sends an explicit null and leaves the row blank again.
+        val clear = FlagRules.diff(Flag(preferred = 1), Flag())
+        assertTrue(clear.containsKey("preferred") && clear["preferred"] == null)
+        assertTrue(FlagRules.apply(Flag(preferred = 1), clear).isBlank)
+        assertFalse(Flag(preferred = 0).isBlank)
+        // The upload row carries the column (a JSON number survives the queue file round trip as Int).
+        val row = PendingQueue.batches(mapOf("sql:x" to set), "u")[0].getJSONObject(0)
+        assertEquals(1, row.getInt("preferred"))
+        val back = PendingQueue.fromJson(PendingQueue.toJson(mapOf("sql:x" to set))).snapshot()["sql:x"]!!
+        assertEquals(1, FlagRules.apply(Flag(), back).preferred)
+    }
 }

@@ -168,7 +168,7 @@ async function sqlLab() {
   const entry = `
     import { createRoot } from 'react-dom/client'
     import { flushSync } from 'react-dom'
-    import { BookOpen, Database, Eye, ListChecks, TriangleAlert } from 'lucide-react'
+    import { BookOpen, Database, Eye, ListChecks, Star, TriangleAlert } from 'lucide-react'
     import SqlViz, { SqlTableSvg } from '${IQ}/src/components/sql/SqlViz.jsx'
     import { highlightCode } from '${IQ}/src/lib/highlight.js'
     import data from '${IQ}/src/data/sql/subquery.json'
@@ -217,7 +217,10 @@ async function sqlLab() {
           </details>
           {l.versions && (
             <div className="sl-vers">{l.versions.map((v, i) => (
-              <button key={i} className={'sl-ver' + (i ? '' : ' is-on')} data-v={i}><span className="sl-ver-n">V{i + 1}</span> {v.label}</button>
+              <div key={i} role="tab" className={'sl-ver' + (i ? '' : ' is-on')} data-v={i}>
+                <span className="sl-ver-n">V{i + 1}</span><span className="sl-ver-label">{v.label}</span>
+                <button type="button" className="sl-pref" aria-pressed="false" aria-label={'Mark V' + (i + 1) + ' as preferred'}><Star size={15} /></button>
+              </div>
             ))}</div>
           )}
           {vs.map((v, k) => {

@@ -63,8 +63,8 @@ internal fun themeVariables(p: Palette, dark: Boolean): String = buildString {
 }
 
 /** Joins the stylesheets, the pre-rendered body and the start-up state into one page. */
-private fun buildPage(kind: PageKind, body: String, p: Palette, dark: Boolean, cover: Boolean, important: Set<String>, importantOnly: Boolean): String {
-    val init = """window.__init={cover:$cover,importantOnly:$importantOnly,important:${JSONArray(important.toList())}};"""
+private fun buildPage(kind: PageKind, body: String, p: Palette, dark: Boolean, cover: Boolean, important: Set<String>, importantOnly: Boolean, preferred: Int?): String {
+    val init = """window.__init={cover:$cover,importantOnly:$importantOnly,important:${JSONArray(important.toList())},preferred:${preferred ?: "null"}};"""
     return buildString(body.length + 4096) {
         append("""<!doctype html><html data-theme="${if (dark) "dark" else "light"}"><head><meta charset="utf-8">""")
         append("""<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">""")
@@ -85,6 +85,7 @@ private class Bridge(
     private val onReady: () -> Unit,
     private val onSelection: () -> ((String) -> Unit),
     private val onMark: () -> ((String) -> Unit),
+    private val onPrefer: () -> ((Int?) -> Unit),
 ) {
     private val ui = Handler(Looper.getMainLooper())
     @JavascriptInterface fun toggleImportant(uid: String) { ui.post { onToggle()(uid) } }
@@ -92,6 +93,8 @@ private class Bridge(
     @JavascriptInterface fun onReady() { ui.post { onReady.invoke() } }
     @JavascriptInterface fun onSelection(json: String) { ui.post { onSelection()(json) } }
     @JavascriptInterface fun onMark(json: String) { ui.post { onMark()(json) } }
+    /** SQL Lab: the star on a version tab; -1 clears the preference. */
+    @JavascriptInterface fun prefer(v: Int) { ui.post { onPrefer()(v.takeIf { it >= 0 }) } }
 }
 
 /**
@@ -121,18 +124,24 @@ fun FormulaPage(
     /** A saved mark was tapped. */
     onMark: (uid: String, ids: List<String>, color: String) -> Unit = { _, _, _ -> },
     clearSelectionNonce: Int = 0,
+    /** SQL Lab: the preferred version (0 = V1) of this lesson, starred on its tab; the page opens on it. */
+    preferred: Int? = null,
+    /** SQL Lab: a version's star was tapped (null = cleared). */
+    onPrefer: (Int?) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     // Rebuilt only when the theme changes; cover and stars are switched live through the page's own script.
     val initial = remember { mutableStateOf(Triple(cover, importantOnly, important)) }
+    val initialPreferred = remember(body) { preferred }
     val html by produceState<String?>(null, kind, body, palette, dark) {
-        value = withContext(Dispatchers.IO) { buildPage(kind, body, palette, dark, initial.value.first, initial.value.third, initial.value.second) }
+        value = withContext(Dispatchers.IO) { buildPage(kind, body, palette, dark, initial.value.first, initial.value.third, initial.value.second, initialPreferred) }
     }
     var ready by remember(html) { mutableStateOf(false) }
     val toggle = rememberUpdatedState(onToggleImportant)
     val section = rememberUpdatedState(onSection)
     val selection = rememberUpdatedState(onSelection)
     val mark = rememberUpdatedState(onMark)
+    val prefer = rememberUpdatedState(onPrefer)
     var web by remember { mutableStateOf<WebView?>(null) }
 
     val page = html
@@ -148,7 +157,7 @@ fun FormulaPage(
                 setBackgroundColor(palette.bg.toArgb())
                 addJavascriptInterface(Bridge({ toggle.value }, { section.value }, { ready = true },
                     { { json -> if (json.isEmpty()) selection.value("", emptyList()) else runCatching { val o = JSONObject(json); selection.value(o.getString("uid"), o.getJSONArray("anchors").let { a -> List(a.length()) { a.getJSONObject(it).let { x -> com.syed.slate.highlight.Anchored(x.getString("block"), x.getInt("start"), x.getInt("end"), x.getString("quote")) } } }) } } },
-                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }), "Slate")
+                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }, { prefer.value }), "Slate")
                 // Nothing in these pages links anywhere; refuse any navigation rather than leave the page.
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
@@ -174,6 +183,7 @@ fun FormulaPage(
     LaunchedEffect(w, ready, highlights) {
         if (ready && kind.highlights) w?.evaluateJavascript("setHighlights(${JSONObject.quote(JSONObject(highlights.mapValues { (_, l) -> JSONArray(l.map { it.toJson().put("start", it.start).put("end", it.end) }) }).toString())})", null)
     }
+    LaunchedEffect(w, ready, preferred) { if (ready && kind == PageKind.SQL) w?.evaluateJavascript("setPreferred(${preferred ?: "null"})", null) }
     LaunchedEffect(w, clearSelectionNonce) { if (clearSelectionNonce > 0) w?.evaluateJavascript("clearSelection()", null) }
     DisposableEffect(Unit) { onDispose { web?.stopLoading() } }
 }
