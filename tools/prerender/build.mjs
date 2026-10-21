@@ -190,7 +190,7 @@ async function sqlLab() {
           {s.sql && <div className="sl-step-sql"><Code code={s.sql} /></div>}
           {s.pseudo && <pre className="sl-pseudo">{s.pseudo}</pre>}
           {s.notes?.length > 0 && <ul className="sl-notes">{s.notes.map((t, i) => <li key={i}>{t}</li>)}</ul>}
-          <SqlViz viz={s.viz} />
+          <SqlViz viz={s.viz} layout="v" />
         </div>
       </section>
     )
