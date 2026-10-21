@@ -20,6 +20,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Delete
@@ -142,27 +144,31 @@ object LivemcqAdmin {
     // Grouping rows into imports used to happen on the client, over every livemcq
     // row it had downloaded. It lives in SQL now: `livemcq_import_batches()` groups
     // by the same 10-minute insert gap and returns ~35 small rows for the picker,
-    // and `livemcq_import_questions(key)` returns ONLY the picked import's
-    // questions, whole. Picking another import is one small query, not a rescan.
+    // and `livemcq_import_questions_range(from, until)` returns ONLY the picked
+    // import's questions, whole, by the batch's own time range (~2 ms; the older
+    // `livemcq_import_questions(key)` regrouped every row on each call, ~240 ms).
 
-    /** One import, as the picker shows it. [key] is the id of its earliest row. */
-    class Batch(val key: String, val at: Long, val count: Int)
+    /**
+     * One import, as the picker shows it. [key] is the id of its earliest row. [atIso] / [untilIso] are the server's
+     * own timestamps, kept as text: they carry microseconds, and a range rebuilt from epoch millis would drop the
+     * rows stamped later within the last millisecond.
+     */
+    class Batch(val key: String, val at: Long, val count: Int, val atIso: String, val untilIso: String)
 
     suspend fun fetchBatches(db: Postgrest): List<Batch> = withContext(Dispatchers.IO) {
         val arr = JSONArray(db.rpc("livemcq_import_batches", JSONObject()))
         List(arr.length()) { arr.getJSONObject(it) }.map { b ->
-            Batch(b.getString("key"), tsOf(b.optString("at")), b.optInt("n"))
+            Batch(b.getString("key"), tsOf(b.optString("at")), b.optInt("n"), b.optString("at"), b.optString("until"))
         }
     }
 
     /**
      * One import's questions, whole: the manage row plus the study [Item] behind it.
      * The item is null for a recycle-binned row, which reads as a plain row instead.
-     * A null [key] — or one whose rows are all gone — returns the newest import.
      */
-    suspend fun fetchBatchQuestions(db: Postgrest, key: String?): List<Pair<Row, Item?>> = withContext(Dispatchers.IO) {
-        val body = JSONObject().put("batch_key", key ?: JSONObject.NULL)
-        val arr = JSONArray(db.rpc("livemcq_import_questions", body))
+    suspend fun fetchBatchQuestions(db: Postgrest, batch: Batch): List<Pair<Row, Item?>> = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("p_from", batch.atIso).put("p_until", batch.untilIso)
+        val arr = JSONArray(db.rpc("livemcq_import_questions_range", body))
         List(arr.length()) { arr.getJSONObject(it) }.map { r ->
             val extra = r.optJSONObject("extra")
             val deleted = !r.isNull("deleted_at")
@@ -289,6 +295,36 @@ private val STUDY_PAGE_SIZE = 20
 
 private fun importWhen(ms: Long): String =
     java.text.SimpleDateFormat("d MMM, HH:mm", java.util.Locale.ENGLISH).format(java.util.Date(ms))
+
+private fun monthKey(ms: Long): String = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.ENGLISH).format(java.util.Date(ms))
+private fun monthName(ms: Long): String = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.ENGLISH).format(java.util.Date(ms))
+
+/**
+ * Picks one import without a list that grows forever: a month (with how many imports it holds), then an import
+ * inside it (~10–15 a month), and ‹ › to step to the next older / newer import across month boundaries. Same as
+ * the web's ImportPicker.
+ */
+@Composable
+private fun ImportPicker(all: List<LivemcqAdmin.Batch>, active: LivemcqAdmin.Batch, onPick: (String) -> Unit) {
+    val p = LocalPalette.current
+    val idx = all.indexOfFirst { it.key == active.key }
+    val months = remember(all) { all.groupBy { monthKey(it.at) }.entries.toList() } // newest month first, as `all` is
+    val month = months.firstOrNull { it.key == monthKey(active.at) } ?: months.first()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        StyledSelect(
+            month.key, months.map { (k, items) -> k to "${monthName(items.first().at)} · ${items.size}" },
+            { k -> months.firstOrNull { it.key == k }?.value?.firstOrNull()?.let { onPick(it.key) } }, Modifier.fillMaxWidth(),
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            SquareIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, p.text2, "Older import", idx < all.size - 1) { onPick(all[idx + 1].key) }
+            StyledSelect(
+                active.key, month.value.map { b -> b.key to "${if (b === all.first()) "Latest · " else ""}${importWhen(b.at)} · ${b.count}" },
+                onPick, Modifier.weight(1f),
+            )
+            SquareIconButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, p.text2, "Newer import", idx > 0) { onPick(all[idx - 1].key) }
+        }
+    }
+}
 
 /** Shared by the three tabs: the livemcq categories + sub-topic lists, as the admin sees them. */
 @Stable
@@ -422,6 +458,9 @@ private fun ManagePanel(
     var batchRows by remember { mutableStateOf<List<LivemcqAdmin.Row>?>(null) }
     var batchItems by remember { mutableStateOf<Map<String, Item>>(emptyMap()) }
     var loadedKey by remember { mutableStateOf<String?>(null) }
+    // Imports already opened on this screen: picking one again shows it with no request. Keyed with the data
+    // version, so an insert from the Import tab makes every entry miss.
+    val importCache = remember { HashMap<String, Pair<List<LivemcqAdmin.Row>, Map<String, Item>>>() }
 
     LaunchedEffect(importsOnly, dataVersion) {
         if (!importsOnly) return@LaunchedEffect
@@ -431,21 +470,31 @@ private fun ManagePanel(
     val active = if (importsOnly) batches?.firstOrNull { it.key == batchKey } ?: batches?.firstOrNull() else null
     val activeKey = active?.key
 
-    // One import, one query — picking another in the dropdown fetches just that one.
+    // One import, one query — picking another fetches just that one, and only the first time.
     LaunchedEffect(activeKey, dataVersion) {
-        val key = activeKey ?: return@LaunchedEffect
+        val batch = active ?: return@LaunchedEffect
+        val ck = "$dataVersion|${batch.key}"
+        val hit = importCache[ck]
+        if (hit != null) { batchRows = hit.first; batchItems = hit.second; loadedKey = batch.key; return@LaunchedEffect }
         try {
-            val pairs = LivemcqAdmin.fetchBatchQuestions(m.db, key)
-            batchRows = pairs.map { it.first }
-            batchItems = pairs.mapNotNull { (r, item) -> item?.let { r.id to it } }.toMap()
-            loadedKey = key
+            val pairs = LivemcqAdmin.fetchBatchQuestions(m.db, batch)
+            val rowsNew = pairs.map { it.first }
+            val items = pairs.mapNotNull { (r, item) -> item?.let { r.id to it } }.toMap()
+            importCache[ck] = rowsNew to items
+            batchRows = rowsNew; batchItems = items; loadedKey = batch.key
         } catch (e: Exception) { err = e.message ?: "Couldn't load this import" }
     }
 
     val rows = if (importsOnly) batchRows else rowsIn
     val rowsNow = rememberUpdatedState(rows)
     // Manage's rows live in the parent; Last import's live here.
-    val applyRows: (List<LivemcqAdmin.Row>) -> Unit = { if (importsOnly) batchRows = it else setRows(it) }
+    val applyRows: (List<LivemcqAdmin.Row>) -> Unit = { list ->
+        if (importsOnly) {
+            batchRows = list
+            // A delete / move / sub-topic edit: keep the cached copy of this import in step.
+            loadedKey?.let { k -> importCache["$dataVersion|$k"]?.let { importCache["$dataVersion|$k"] = list to it.second } }
+        } else setRows(list)
+    }
     if (errorIn != null) { Text(errorIn, Modifier.padding(16.dp), color = p.bad); return }
     if (if (importsOnly) batches == null else rows == null) {
         SlateLoader(Modifier.fillMaxWidth().padding(top = 80.dp), label = "Loading questions…")
@@ -545,10 +594,7 @@ private fun ManagePanel(
                 Text("${if (active === all.firstOrNull()) "Last import" else "Import"} · ${importWhen(active.at)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 val nc = importCats?.size ?: 0
                 Text("$total question${if (total == 1) "" else "s"} across $nc categor${if (nc == 1) "y" else "ies"}", style = MaterialTheme.typography.bodyMedium, color = p.text3)
-                if (all.size > 1) StyledSelect(
-                    active.key, all.take(30).mapIndexed { i, b -> b.key to "${if (i == 0) "Latest · " else ""}${importWhen(b.at)} · ${b.count}" },
-                    { batchKey = it; cat = ""; subFilter = ""; page = 0 }, Modifier.wrapContentWidth(),
-                )
+                if (all.size > 1) ImportPicker(all, active) { batchKey = it; cat = ""; subFilter = ""; page = 0 }
             }
         }
         item(key = "search") {
