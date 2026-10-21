@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -400,6 +401,8 @@ private fun ManagePanel(
     var cat by rememberSaveable(importsOnly) { mutableStateOf("") }
     var subFilter by rememberSaveable(importsOnly) { mutableStateOf("") }
     var page by rememberSaveable(importsOnly) { mutableIntStateOf(0) }
+    // Last import: সব / Important / Weak, like Study (a Nailed question is out of Important and Weak).
+    var mark by rememberSaveable(importsOnly) { mutableStateOf("all") }
     var batchKey by rememberSaveable { mutableStateOf("") } // "" = the newest
     var confirm by remember { mutableStateOf<LivemcqAdmin.Row?>(null) }
     var moving by remember { mutableStateOf<LivemcqAdmin.Row?>(null) }
@@ -464,14 +467,25 @@ private fun ManagePanel(
 
     val itemById = if (importsOnly) batchItems else emptyMap()
 
-    val filtered = remember(shownRows, q, cat, subFilter, batchLoading) {
-        if (batchLoading) emptyList() else {
-            val needle = q.trim().lowercase()
-            shownRows.filter { r ->
-                if (cat.isNotEmpty() && r.slug != cat) return@filter false
-                if (cat.isNotEmpty() && subFilter.isNotEmpty() && (if (subFilter == NO_SUB) r.subtopic != null else r.subtopic != subFilter)) return@filter false
-                if (needle.isEmpty()) true else (r.favoriteId?.contains(needle) == true) || stripTags(r.question).lowercase().contains(needle)
-            }
+    val inScope = remember(shownRows, cat, subFilter, batchLoading) {
+        if (batchLoading) emptyList() else shownRows.filter { r ->
+            if (cat.isNotEmpty() && r.slug != cat) return@filter false
+            !(cat.isNotEmpty() && subFilter.isNotEmpty() && (if (subFilter == NO_SUB) r.subtopic != null else r.subtopic != subFilter))
+        }
+    }
+    fun markOf(r: LivemcqAdmin.Row, kind: String): Boolean {
+        val f = itemById[r.id]?.uid?.let { flags[it] } ?: return false
+        if (f.nailed) return false
+        return if (kind == "weak") f.weak else f.important
+    }
+    val markCounts = remember(inScope, flags, itemById, importsOnly) {
+        if (!importsOnly) 0 to 0 else inScope.count { markOf(it, "important") } to inScope.count { markOf(it, "weak") }
+    }
+    val filtered = remember(inScope, q, mark, flags, itemById, importsOnly) {
+        val needle = q.trim().lowercase()
+        inScope.filter { r ->
+            if (importsOnly && mark != "all" && !markOf(r, mark)) return@filter false
+            if (needle.isEmpty()) true else (r.favoriteId?.contains(needle) == true) || stripTags(r.question).lowercase().contains(needle)
         }
     }
     val pageSize = if (importsOnly) STUDY_PAGE_SIZE else PAGE_SIZE
@@ -556,6 +570,13 @@ private fun ManagePanel(
         }
         if (cat.isNotEmpty() && catalog.subList(cat).isNotEmpty()) item(key = "subfilter") {
             StyledSelect(subFilter, catalog.subList(cat).map { it.slug to it.name } + (NO_SUB to "No sub-topic"), { subFilter = it; page = 0 }, Modifier.fillMaxWidth(), allLabel = "All sub-topics")
+        }
+        if (importsOnly) item(key = "markfilter") {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf("all" to "সব (${inScope.size})", "important" to "Important (${markCounts.first})", "weak" to "Weak (${markCounts.second})").forEach { (k, label) ->
+                    androidx.compose.material3.FilterChip(mark == k, { mark = k; page = 0 }, { Text(label, maxLines = 1, softWrap = false) })
+                }
+            }
         }
         if (notice.isNotEmpty()) item(key = "notice") {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(p.ok.copy(alpha = .12f)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
