@@ -101,7 +101,7 @@ fun CodeBlock(code: String, lang: String?, modifier: Modifier = Modifier, uid: S
     val text = remember(code, lang, dark) { codeAnnotated(shown, lang ?: "c", colors) }
     val style = MaterialTheme.typography.bodyMedium.copy(fontFamily = Mono, fontSize = 12.5.sp, lineHeight = 18.sp)
     Box(modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).background(colors.bg).horizontalScroll(rememberScrollState()).padding(12.dp)) {
-        if (uid != null && block != null) HText(uid, block, shown, base = text, color = colors.text, style = style, softWrap = false, raw = code)
+        if (uid != null && block != null) HText(uid, block, shown, base = text, color = colors.text, style = style, softWrap = false, raw = code, markLift = colors.comment to colors.text)
         else Text(text, color = colors.text, style = style, softWrap = false)
     }
 }

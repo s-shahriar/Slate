@@ -42,6 +42,18 @@ import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material.icons.outlined.WbTwilight
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import com.syed.slate.ui.component.LocalLeftHand
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -113,12 +125,18 @@ private class Progress(val subjects: Int, val done: Int, val items: Int, val ite
 private fun progressOf(list: List<RoutineSubject>) =
     Progress(list.size, list.count { it.done }, list.sumOf { it.items.size }, list.sumOf { s -> s.items.count { it.done } })
 
-/** A slot whose add form is open, or a subject being edited. */
-private sealed interface Editing { data class Add(val slot: Slot) : Editing; data class Edit(val id: String) : Editing }
+/** The open sheet: a new subject for a slot, or an existing one being edited. */
+private sealed interface Sheet { data class Add(val slot: Slot) : Sheet; data class Edit(val id: String) : Sheet }
+
+/** The slot a new subject lands in: the time of day for today, Morning otherwise (the web's slotNow). */
+private fun slotNow(): Slot = when (java.time.LocalTime.now().hour) {
+    in 5..11 -> Slot.MORNING; in 12..16 -> Slot.AFTERNOON; in 17..20 -> Slot.EVENING; else -> Slot.LATE_NIGHT
+}
 
 /**
  * Study routine, the web's /routine: a date-wise plan in four slots; each subject has its own tick and its own
- * tickable tasks (Book, MCQ…). Add / edit / delete / reorder inline, copy another day's plan in one tap.
+ * tickable tasks (Book, MCQ…). The list only ticks; tapping a subject's name opens the edit sheet, the pinned Add
+ * button the add sheet. Edits and deletes ask once more at the foot of the sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -137,9 +155,9 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
     val today = LocalDate.now()
     var dayText by rememberSaveable { mutableStateOf(today.toString()) }
     val day = LocalDate.parse(dayText)
-    var editing by remember { mutableStateOf<Editing?>(null) }
+    var sheet by remember { mutableStateOf<Sheet?>(null) }
     var picker by rememberSaveable { mutableStateOf<String?>(null) } // null | "jump" | "copy"
-    fun go(d: LocalDate) { dayText = d.toString(); editing = null }
+    fun go(d: LocalDate) { dayText = d.toString(); sheet = null }
 
     val byDay = remember(all) { all.values.groupBy { it.day } }
     val subjects = byDay[dayText].orEmpty()
@@ -163,11 +181,20 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
+        // Pinned bottom corner, within thumb reach; follows the hand toggle.
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { sheet = Sheet.Add(if (day == today) slotNow() else Slot.MORNING) },
+                icon = { Icon(Icons.Filled.Add, null) }, text = { Text("Add", fontWeight = FontWeight.ExtraBold) },
+                containerColor = p.primary, contentColor = p.onPrimary, shape = RoundedCornerShape(18.dp),
+            )
+        },
+        floatingActionButtonPosition = if (LocalLeftHand.current) FabPosition.Start else FabPosition.End,
     ) { pad ->
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 110.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "date") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -221,97 +248,95 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
                 }
             }
 
-            if (prog.subjects > 0) item(key = "summary") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (prog.subjects == 0) item(key = "blank") {
+                Column(Modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Nothing planned for ${day.short()}.", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${prog.done}/${prog.subjects} subjects" + if (prog.items > 0) " · ${prog.itemsDone}/${prog.items} tasks" else "",
-                        style = MaterialTheme.typography.bodyMedium, color = p.text2, fontWeight = FontWeight.SemiBold,
-                    )
-                    LinearProgressIndicator(
-                        progress = { if (prog.items > 0) prog.itemsDone / prog.items.toFloat() else prog.done / prog.subjects.toFloat() },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(6.dp)),
-                        color = p.ok, trackColor = p.elevated, drawStopIndicator = {},
-                    )
-                }
-            } else item(key = "blank") {
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).border(1.dp, p.outline, RoundedCornerShape(16.dp)).padding(18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text("No plan for ${day.short()} yet.", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Add a subject under a slot below" + if (lastPlanned != null) ", or start from an earlier day." else ".",
+                        "Tap Add to plan a subject" + if (lastPlanned != null) ", or start from an earlier day." else ".",
                         style = MaterialTheme.typography.bodySmall, color = p.text3,
                     )
-                    if (lastPlanned != null) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (lastPlanned != null) Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         RtButton("Copy ${LocalDate.parse(lastPlanned).short()}", solid = true, icon = Icons.Filled.ContentCopy) { copyFrom(lastPlanned) }
                         RtButton("Other day…") { picker = "copy" }
                     }
                 }
-            }
-
-            var number = 0
-            Slot.entries.forEach { slot ->
-                val color = slotColor(slot, dark)
-                val list = subjects.filter { it.slot == slot }.sortedWith(RoutineOps.order)
-                item(key = "slot-${slot.id}") {
-                    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
-                            Icon(slotIcon(slot), null, Modifier.size(19.dp), tint = color)
-                        }
-                        Text(slot.label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
-                        if (list.isNotEmpty()) Text("${list.count { it.done }}/${list.size}", style = MaterialTheme.typography.labelMedium, color = p.text3)
-                        Spacer(Modifier.weight(1f))
-                        Surface(
-                            onClick = { editing = if (editing == Editing.Add(slot)) null else Editing.Add(slot) },
-                            shape = RoundedCornerShape(10.dp), color = color.copy(alpha = .10f), border = BorderStroke(1.dp, color.copy(alpha = .3f)),
-                        ) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Add, null, Modifier.size(17.dp), tint = color)
-                                Spacer(Modifier.width(4.dp))
-                                Text("Add", style = MaterialTheme.typography.labelLarge, color = color, fontWeight = FontWeight.Bold)
+            } else {
+                item(key = "summary") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "${prog.done}/${prog.subjects} subjects" + if (prog.items > 0) "   ·   ${prog.itemsDone}/${prog.items} tasks" else "",
+                            style = MaterialTheme.typography.bodyMedium, color = p.text2, fontWeight = FontWeight.SemiBold,
+                        )
+                        LinearProgressIndicator(
+                            progress = { if (prog.items > 0) prog.itemsDone / prog.items.toFloat() else prog.done / prog.subjects.toFloat() },
+                            modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(5.dp)),
+                            color = p.ok, trackColor = p.elevated, drawStopIndicator = {},
+                        )
+                    }
+                }
+                var number = 0
+                Slot.entries.forEach { slot ->
+                    val list = subjects.filter { it.slot == slot }.sortedWith(RoutineOps.order)
+                    if (list.isEmpty()) return@forEach
+                    val first = number + 1
+                    number += list.size
+                    item(key = "slot-${slot.id}") {
+                        Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(slotIcon(slot), null, Modifier.size(17.dp), tint = slotColor(slot, dark))
+                                Text(slot.label.uppercase(), style = MaterialTheme.typography.labelMedium, color = p.text2, fontWeight = FontWeight.ExtraBold)
+                                Spacer(Modifier.weight(1f))
+                                Text("${list.count { it.done }}/${list.size}", style = MaterialTheme.typography.labelMedium, color = p.text3)
+                            }
+                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface).border(1.dp, p.outline, RoundedCornerShape(16.dp))) {
+                                list.forEachIndexed { i, s ->
+                                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(p.outline))
+                                    SubjectRow(first + i, s, repo::toggle, repo::toggleItem) { sheet = Sheet.Edit(s.id) }
+                                }
                             }
                         }
                     }
                 }
-                list.forEachIndexed { i, s ->
-                    number++
-                    val n = number
-                    item(key = s.id) {
-                        if (editing == Editing.Edit(s.id)) SubjectForm(
-                            initial = s, color = color, suggestions = suggestions,
-                            canUp = i > 0, canDown = i < list.lastIndex,
-                            onMove = { dir -> repo.move(s.id, dir) },
-                            onDelete = { repo.delete(s.id); editing = null },
-                            onSave = { title, sl, items -> repo.edit(s.id, title, sl, items); editing = null },
-                            onCancel = { editing = null },
-                        ) else SubjectCard(n, s, color, suggestions, repo::toggle, repo::toggleItem, repo::addItem) { editing = Editing.Edit(s.id) }
-                    }
-                }
-                if (editing == Editing.Add(slot)) item(key = "add-${slot.id}") {
-                    SubjectForm(
-                        initial = RoutineSubject("", dayText, slot, "", false, emptyList(), 0.0, ""), color = color, suggestions = suggestions,
-                        onSave = { title, sl, items -> repo.add(dayText, sl, title, items.map { it.label }); editing = null },
-                        onCancel = { editing = null },
-                    )
-                }
-            }
-
-            if (prog.subjects > 0) item(key = "copy") {
-                Surface(
-                    onClick = { picker = "copy" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    shape = RoundedCornerShape(14.dp), color = Color.Transparent, border = BorderStroke(1.dp, p.outline),
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        Icon(Icons.Filled.ContentCopy, null, Modifier.size(16.dp), tint = p.text3)
+                item(key = "copy") {
+                    Row(
+                        Modifier.clip(RoundedCornerShape(10.dp)).clickable { picker = "copy" }.padding(horizontal = 6.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.ContentCopy, null, Modifier.size(15.dp), tint = p.text3)
                         Spacer(Modifier.width(8.dp))
-                        Text("Copy another day's plan into ${day.short()}", style = MaterialTheme.typography.labelLarge, color = p.text3)
+                        Text("Copy another day's plan into this day", style = MaterialTheme.typography.labelLarge, color = p.text3)
                     }
                 }
             }
         }
     }
+
+    when (val s = sheet) {
+        null -> Unit
+        is Sheet.Add -> SubjectSheet(
+            dayLabel = day.short(), initial = RoutineSubject("", dayText, s.slot, "", false, emptyList(), 0.0, ""), suggestions = suggestions,
+            onSave = { title, sl, items -> repo.add(dayText, sl, title, items.map { it.label }); sheet = null },
+            onClose = { sheet = null },
+        )
+        is Sheet.Edit -> {
+            val subject = all[s.id]
+            // Deleted elsewhere (another device synced in) while the sheet was open.
+            if (subject == null) LaunchedEffect(s.id) { sheet = null }
+            else {
+                val list = subjects.filter { it.slot == subject.slot }.sortedWith(RoutineOps.order)
+                val i = list.indexOfFirst { it.id == subject.id }
+                SubjectSheet(
+                    dayLabel = day.short(), initial = subject, suggestions = suggestions,
+                    canUp = i > 0, canDown = i in 0 until list.lastIndex, onMove = { dir -> repo.move(subject.id, dir) },
+                    onDelete = { repo.delete(subject.id); sheet = null; Notices.post(Notice("Deleted “${subject.title}”", Notice.Kind.OK)) },
+                    onSave = { title, sl, items -> repo.edit(subject.id, title, sl, items); sheet = null },
+                    onClose = { sheet = null },
+                )
+            }
+        }
+    }
 }
+
 
 @Composable
 private fun WeekStrip(day: LocalDate, today: LocalDate, byDay: Map<String, List<RoutineSubject>>, onPick: (LocalDate) -> Unit) {
@@ -402,69 +427,55 @@ private fun MonthPicker(value: LocalDate, planned: Set<String>, title: String?, 
 }
 
 @Composable
-private fun CheckBox(on: Boolean, size: Int, p: Palette, modifier: Modifier = Modifier) {
+private fun CheckBox(on: Boolean, size: Int, p: Palette, modifier: Modifier = Modifier, round: Boolean = false) {
+    val shape = if (round) RoundedCornerShape(50) else RoundedCornerShape((size / 3).dp)
     Box(
-        modifier.size(size.dp).clip(RoundedCornerShape((size / 3).dp)).background(if (on) p.ok else Color.Transparent)
-            .border(2.dp, if (on) p.ok else p.text3.copy(alpha = .6f), RoundedCornerShape((size / 3).dp)),
+        modifier.size(size.dp).clip(shape).background(if (on) p.ok else Color.Transparent)
+            .border(if (size < 20) 1.6.dp else 2.dp, if (on) p.ok else p.text3.copy(alpha = .7f), shape),
         contentAlignment = Alignment.Center,
     ) { if (on) Icon(Icons.Filled.Check, null, Modifier.size((size * .65f).dp), tint = p.surface) }
 }
 
+/** One subject in its slot's list: the round tick, the name (opens the edit sheet), then its tasks as tickable pills. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SubjectCard(
-    n: Int, s: RoutineSubject, color: Color, suggestions: List<String>,
-    onToggle: (String) -> Unit, onToggleItem: (String, String) -> Unit, onAddItem: (String, String) -> Unit, onEdit: () -> Unit,
-) {
+private fun SubjectRow(n: Int, s: RoutineSubject, onToggle: (String) -> Unit, onToggleItem: (String, String) -> Unit, onOpen: () -> Unit) {
     val p = LocalPalette.current
-    var adding by rememberSaveable(s.id) { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface)
-            // The slot-colour rail on the left edge.
-            .drawBehind { drawRect(color, size = Size(3.dp.toPx(), size.height)) }
-            .border(1.dp, p.outline, RoundedCornerShape(16.dp)),
-    ) {
-        Column(Modifier.weight(1f).padding(start = 13.dp, end = 4.dp, top = 6.dp, bottom = 12.dp)) {
-            Row(Modifier.fillMaxWidth().clickable { onToggle(s.id) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                CheckBox(s.done, 28, p)
-                Spacer(Modifier.width(10.dp))
-                Text("$n", style = MaterialTheme.typography.labelLarge, color = p.text3, fontWeight = FontWeight.ExtraBold)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    s.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                    color = if (s.done) p.text3 else p.text, textDecoration = if (s.done) TextDecoration.LineThrough else null,
-                )
-                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, "Edit", Modifier.size(18.dp), tint = p.text3) }
-            }
-            FlowRow(Modifier.padding(top = 6.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 12.dp)) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(50)).clickable { onToggle(s.id) }, contentAlignment = Alignment.Center) {
+            CheckBox(s.done, 26, p, round = true)
+        }
+        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = p.text3)) { append("$n. ") }
+                    append(s.title)
+                },
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onOpen).padding(top = 12.dp, bottom = 4.dp),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                color = if (s.done) p.text3 else p.text, textDecoration = if (s.done) TextDecoration.LineThrough else null,
+            )
+            if (s.items.isNotEmpty()) FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 s.items.forEach { it ->
                     Row(
-                        Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(10.dp))
+                        Modifier.heightIn(min = 34.dp).clip(RoundedCornerShape(50))
                             .background(if (it.done) p.ok.copy(alpha = .14f) else p.elevated)
-                            .border(1.dp, if (it.done) p.ok.copy(alpha = .35f) else p.outline, RoundedCornerShape(10.dp))
                             .clickable { onToggleItem(s.id, it.id) }.padding(start = 8.dp, end = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        CheckBox(it.done, 18, p)
-                        Spacer(Modifier.width(7.dp))
+                        CheckBox(it.done, 16, p, round = true)
+                        Spacer(Modifier.width(6.dp))
                         Text(
-                            it.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                            color = if (it.done) p.text3 else p.text, textDecoration = if (it.done) TextDecoration.LineThrough else null,
+                            it.label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
+                            color = if (it.done) p.text3 else p.text2, textDecoration = if (it.done) TextDecoration.LineThrough else null,
                         )
                     }
                 }
-                Box(
-                    Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, p.outline, RoundedCornerShape(10.dp)).clickable { adding = !adding },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(if (adding) Icons.Filled.Close else Icons.Filled.Add, "Add a task", Modifier.size(17.dp), tint = p.text3) }
-            }
-            if (adding) {
-                val present = s.items.map { it.label.lowercase() }.toSet()
-                ItemPicker(suggestions.filter { it.lowercase() !in present }, Modifier.padding(top = 10.dp, end = 8.dp)) { onAddItem(s.id, it) }
             }
         }
     }
 }
+
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -498,103 +509,129 @@ private fun ItemPicker(suggestions: List<String>, modifier: Modifier = Modifier,
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Add / edit as a bottom sheet. An edit (when something changed) and a delete each ask once more in a quiet strip at the foot. */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-private fun SubjectForm(
-    initial: RoutineSubject, color: Color, suggestions: List<String>,
-    onSave: (String, Slot, List<RoutineItem>) -> Unit, onCancel: () -> Unit,
+private fun SubjectSheet(
+    dayLabel: String, initial: RoutineSubject, suggestions: List<String>,
+    onSave: (String, Slot, List<RoutineItem>) -> Unit, onClose: () -> Unit,
     onDelete: (() -> Unit)? = null, onMove: (Int) -> Unit = {}, canUp: Boolean = false, canDown: Boolean = false,
 ) {
     val p = LocalPalette.current
+    val isEdit = onDelete != null
     var title by rememberSaveable(initial.id) { mutableStateOf(initial.title) }
     var slot by remember(initial.id) { mutableStateOf(initial.slot) }
     val items = remember(initial.id) { mutableStateListOf<RoutineItem>().apply { addAll(initial.items) } }
-    var armed by remember { mutableStateOf(false) }
-    LaunchedEffect(armed) { if (armed) { delay(3000); armed = false } }
+    var confirm by remember { mutableStateOf<String?>(null) } // null | "save" | "delete"
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    if (!isEdit) LaunchedEffect(Unit) { delay(250); runCatching { focus.requestFocus() } }
     val present = items.map { it.label.lowercase() }.toSet()
-    fun addLabel(l: String) { val c = RoutineOps.clean(l); if (c.isNotEmpty() && c.lowercase() !in present) items.add(RoutineItem(com.syed.slate.routine.newId(), c, false)) }
-    fun save() { if (title.isNotBlank()) onSave(title, slot, items.toList()) }
+    fun addLabel(l: String) { val c = RoutineOps.clean(l); if (c.isNotEmpty() && c.lowercase() !in present) { items.add(RoutineItem(com.syed.slate.routine.newId(), c, false)); confirm = null } }
+    val dirty = RoutineOps.clean(title) != initial.title || slot != initial.slot || items.map { it.label } != initial.items.map { it.label }
+    fun save() {
+        if (title.isBlank()) return
+        when {
+            !isEdit || confirm == "save" -> onSave(title, slot, items.toList())
+            !dirty -> onClose()
+            else -> confirm = "save"
+        }
+    }
 
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface).border(1.dp, color.copy(alpha = .5f), RoundedCornerShape(16.dp)).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        OutlinedTextField(
-            title, { title = it }, Modifier.fillMaxWidth().focusRequester(focus), placeholder = { Text("Subject, e.g. Cloud Computing") },
-            singleLine = true, shape = RoundedCornerShape(12.dp), textStyle = MaterialTheme.typography.titleMedium,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { save() }),
-        )
-        Slot.entries.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { s ->
-                    val on = s == slot
-                    Row(
-                        Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(10.dp)).background(if (on) p.primary else p.elevated)
-                            .border(1.dp, if (on) p.primary else p.outline, RoundedCornerShape(10.dp)).clickable { slot = s },
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(slotIcon(s), null, Modifier.size(15.dp), tint = if (on) p.onPrimary else p.text2)
-                        Spacer(Modifier.width(6.dp))
-                        Text(s.label, style = MaterialTheme.typography.labelLarge, color = if (on) p.onPrimary else p.text2, fontWeight = FontWeight.Bold)
+    ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = p.surface) {
+        Column(Modifier.fillMaxWidth().imePadding()) {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column {
+                    Text(if (isEdit) "Edit subject" else "New subject", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                    Text(dayLabel, style = MaterialTheme.typography.labelMedium, color = p.text3)
+                }
+                OutlinedTextField(
+                    title, { title = it; confirm = null }, Modifier.fillMaxWidth().focusRequester(focus), placeholder = { Text("Subject, e.g. Cloud Computing") },
+                    singleLine = true, shape = RoundedCornerShape(12.dp), textStyle = MaterialTheme.typography.titleMedium,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                )
+                Slot.entries.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { s ->
+                            val on = s == slot
+                            Row(
+                                Modifier.weight(1f).heightIn(min = 42.dp).clip(RoundedCornerShape(11.dp)).background(if (on) p.primary else p.elevated)
+                                    .clickable { slot = s; confirm = null },
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+                            ) {
+                                Icon(slotIcon(s), null, Modifier.size(16.dp), tint = if (on) p.onPrimary else p.text2)
+                                Spacer(Modifier.width(6.dp))
+                                Text(s.label, style = MaterialTheme.typography.labelLarge, color = if (on) p.onPrimary else p.text2, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
-            }
-        }
-        Text("TASKS", style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            if (items.isEmpty()) Text("Tap below to add Book, MCQ…", style = MaterialTheme.typography.bodySmall, color = p.text3)
-            items.toList().forEach { it ->
-                Row(
-                    Modifier.heightIn(min = 36.dp).clip(RoundedCornerShape(50)).background(if (it.done) p.ok.copy(alpha = .16f) else p.primaryContainer)
-                        .padding(start = 12.dp, end = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (it.done) { Icon(Icons.Filled.Check, null, Modifier.size(14.dp), tint = p.ok); Spacer(Modifier.width(4.dp)) }
-                    Text(it.label, style = MaterialTheme.typography.labelLarge, color = if (it.done) p.text else p.onPrimaryContainer, fontWeight = FontWeight.SemiBold)
-                    IconButton(onClick = { items.remove(it) }, Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Close, "Remove ${it.label}", Modifier.size(15.dp), tint = if (it.done) p.text2 else p.onPrimaryContainer)
+                Text("TASKS", style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    if (items.isEmpty()) Text("None yet — pick from below.", style = MaterialTheme.typography.bodySmall, color = p.text3)
+                    items.toList().forEach { it ->
+                        Row(
+                            Modifier.heightIn(min = 36.dp).clip(RoundedCornerShape(50)).background((if (it.done) p.ok else p.primary).copy(alpha = .16f))
+                                .border(1.dp, (if (it.done) p.ok else p.primary).copy(alpha = .38f), RoundedCornerShape(50)).padding(start = 12.dp, end = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (it.done) { Icon(Icons.Filled.Check, null, Modifier.size(14.dp), tint = p.ok); Spacer(Modifier.width(4.dp)) }
+                            Text(it.label, style = MaterialTheme.typography.labelLarge, color = p.text, fontWeight = FontWeight.SemiBold)
+                            IconButton(onClick = { items.remove(it); confirm = null }, Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.Close, "Remove ${it.label}", Modifier.size(15.dp), tint = p.text2)
+                            }
+                        }
                     }
                 }
+                ItemPicker(suggestions.filter { it.lowercase() !in present }) { addLabel(it) }
+                Spacer(Modifier.height(4.dp))
             }
-        }
-        ItemPicker(suggestions.filter { it.lowercase() !in present }) { addLabel(it) }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (onDelete != null) {
-                IconButton(onClick = { onMove(-1) }, enabled = canUp) { Icon(Icons.Filled.ArrowUpward, "Move up") }
-                IconButton(onClick = { onMove(1) }, enabled = canDown) { Icon(Icons.Filled.ArrowDownward, "Move down") }
-                Box(
-                    Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).background(if (armed) p.bad else Color.Transparent)
-                        .border(1.dp, p.bad.copy(alpha = if (armed) 1f else .4f), RoundedCornerShape(12.dp))
-                        .clickable { if (armed) onDelete() else armed = true }.padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.DeleteOutline, null, Modifier.size(17.dp), tint = if (armed) p.surface else p.bad)
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (armed) "Tap again" else "Delete", style = MaterialTheme.typography.labelLarge, color = if (armed) p.surface else p.bad, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(p.outline))
+            val c = confirm
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(when (c) { "delete" -> p.bad.copy(alpha = .10f); "save" -> p.primary.copy(alpha = .10f); else -> Color.Transparent })
+                    .navigationBarsPadding().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (c != null) {
+                    Text(
+                        if (c == "delete") "Delete “${initial.title}”?" else "Save these changes?", Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    )
+                    RtButton("No", ghost = true) { confirm = null }
+                    if (c == "delete") RtButton("Delete", danger = true) { onDelete?.invoke() }
+                    else RtButton("Yes, save", solid = true) { save() }
+                } else {
+                    if (isEdit) {
+                        IconButton(onClick = { confirm = "delete" }) { Icon(Icons.Filled.DeleteOutline, "Delete", tint = p.bad) }
+                        IconButton(onClick = { onMove(-1) }, enabled = canUp) { Icon(Icons.Filled.ArrowUpward, "Move up") }
+                        IconButton(onClick = { onMove(1) }, enabled = canDown) { Icon(Icons.Filled.ArrowDownward, "Move down") }
                     }
+                    Spacer(Modifier.weight(1f))
+                    RtButton("Cancel", ghost = true) { onClose() }
+                    RtButton(if (isEdit) "Save" else "Add", solid = true, enabled = title.isNotBlank()) { save() }
                 }
             }
-            Spacer(Modifier.weight(1f))
-            RtButton("Cancel") { onCancel() }
-            RtButton(if (onDelete != null) "Save" else "Add", solid = true, enabled = title.isNotBlank()) { save() }
         }
     }
 }
 
+
 @Composable
-private fun RtButton(text: String, solid: Boolean = false, enabled: Boolean = true, icon: ImageVector? = null, onClick: () -> Unit) {
+private fun RtButton(
+    text: String, solid: Boolean = false, enabled: Boolean = true, icon: ImageVector? = null,
+    ghost: Boolean = false, danger: Boolean = false, onClick: () -> Unit,
+) {
     val p = LocalPalette.current
     Surface(
         onClick = onClick, enabled = enabled, shape = RoundedCornerShape(12.dp),
-        color = if (solid) p.primary else p.elevated, border = if (solid) null else BorderStroke(1.dp, p.outline),
+        color = when { danger -> p.bad; solid -> p.primary; ghost -> Color.Transparent; else -> p.elevated },
+        border = if (solid || ghost || danger) null else BorderStroke(1.dp, p.outline),
         modifier = Modifier.heightIn(min = 40.dp),
     ) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            val ink = (if (solid) p.onPrimary else p.text).copy(alpha = if (enabled) 1f else .45f)
+            val ink = (when { danger -> p.surface; solid -> p.onPrimary; ghost -> p.text2; else -> p.text }).copy(alpha = if (enabled) 1f else .45f)
             icon?.let { Icon(it, null, Modifier.size(16.dp), tint = ink); Spacer(Modifier.width(6.dp)) }
             Text(text, style = MaterialTheme.typography.labelLarge, color = ink, fontWeight = FontWeight.Bold, maxLines = 1)
         }

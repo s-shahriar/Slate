@@ -28,3 +28,5 @@ button { font-family: inherit; }
 .eq-zoom-scroll svg { display: block; width: 900px; min-width: 900px; max-width: none; height: auto; }
 .eq-zoom-close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 20px; border: 1px solid var(--border-md);
   background: var(--surface); color: var(--text); font-size: 1.1rem; }
+/* A code comment's grey drowns under a mark: lift it to the code ink (same rule as ict-quiz index.css). */
+.token.comment .hl-mark, .hl-mark .token.comment { color: var(--sl-editor-ink, var(--text)); }

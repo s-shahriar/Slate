@@ -99,7 +99,7 @@ fun PlainQuestionText(text: String, modifier: Modifier = Modifier, style: TextSt
             val colors = if (LocalPalette.current.bg.luminance() < .5f) com.syed.slate.ui.reader.darkCode else com.syed.slate.ui.reader.lightCode
             val coloured = remember(code, colors) { com.syed.slate.ui.reader.codeAnnotated(code, CodeTokens.guessLang(code), colors) }
             Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).background(colors.bg).horizontalScroll(rememberScrollState()).padding(12.dp)) {
-                com.syed.slate.ui.highlight.HText(uid, "q.code", code, base = coloured, color = colors.text, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = com.syed.slate.ui.theme.Mono, fontSize = 13.sp, lineHeight = 19.sp), softWrap = false)
+                com.syed.slate.ui.highlight.HText(uid, "q.code", code, base = coloured, color = colors.text, style = MaterialTheme.typography.bodyMedium.copy(fontFamily = com.syed.slate.ui.theme.Mono, fontSize = 13.sp, lineHeight = 19.sp), softWrap = false, markLift = colors.comment to colors.text)
             }
         }
     }

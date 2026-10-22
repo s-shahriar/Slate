@@ -221,6 +221,8 @@ fun HText(
     toRaw: IntArray? = null,
     softWrap: Boolean = true,
     onTap: (() -> Unit)? = null,
+    /** Under a mark, base text in `first` colour is drawn in `second` instead (code comments' grey drowns in the band). */
+    markLift: Pair<Color, Color>? = null,
 ) {
     val ctl = LocalHighlights.current
     val byUid by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap()) }).collectAsState()
@@ -237,10 +239,16 @@ fun HText(
             }
         }
     }
-    val annotated = remember(text, base, shown, dark) {
+    val annotated = remember(text, base, shown, dark, markLift) {
         buildAnnotatedString {
             append(base ?: AnnotatedString(text))
             shown.forEach { (s, e, b) -> addStyle(SpanStyle(background = (if (dark) Highlights.dark(b.color) else Highlights.light(b.color)).fill), s, e) }
+            if (markLift != null && base != null) base.spanStyles.filter { it.item.color == markLift.first }.forEach { sp ->
+                shown.forEach { (s, e, _) ->
+                    val from = maxOf(s, sp.start); val to = minOf(e, sp.end)
+                    if (to > from) addStyle(SpanStyle(color = markLift.second), from, to)
+                }
+            }
         }
     }
     val resolved = style.copy(color = if (color != Color.Unspecified) color else LocalContentColor.current)
