@@ -245,3 +245,11 @@ the partial file.
   (0.7.0) opens it at full height so text can be selected/highlighted (a 3-line inner-scrolling box made that impossible); resets per question. New question: card bottom just above the bar.
   "Review" = idx < furthest index reached (not the question just answered). Web: `shared/useQuizStage.js` + `.quiz-stage`.
   (0.6.7's "blank gap above the question, explanation below" was rejected by the user as a big blank block; don't bring it back.)
+
+## Routine (2026-10-22)
+Date-wise study plan, same as the web's `/routine` in both apps (`src/components/routine/`, `src/lib/routineStore.js` — identical files in
+general-quiz and ict-quiz). Table `routine_subjects(id uuid, user_id default auth.uid(), day date, slot morning|afternoon|evening|late_night,
+title, done, items jsonb [{id,label,done}], position, updated_at)` in BOTH projects, owner-locked RLS like `user_progress`. Subject tick and
+item ticks are independent; one row per subject, so every edit is a whole-row upsert (last write wins). Slate: `routine/` (`RoutineOps` pure
+edits, `RoutineRepository` cache + queue files `routine_*_<module>.json`, flushed by `flushNow`), `ui/screen/RoutineScreen.kt`, a "Routine"
+card on each module's launcher. Preset tasks: Book, Online written, MCQ, Note, Self note, Math, YouTube; custom labels used before become chips.

@@ -34,11 +34,12 @@ class ModuleServices(app: Application, val id: ModuleId, private val scope: Coro
     val trash: com.syed.slate.trash.TrashRepository = com.syed.slate.trash.TrashRepository(app, id, auth, db, scope) { scope.launch { content.refresh() } }
 
     val highlights = com.syed.slate.highlight.HighlightRepository(app, id, auth, db, scope)
+    val routine = com.syed.slate.routine.RoutineRepository(app, id, auth, db, scope)
 
     init { content.bindHidden(scope, trash.hidden) }
 
-    /** Pushes every queue now, skipping any backoff wait: flags, recycle-bin ops and highlights. */
-    fun flushNow() { progress.retryNow(); trash.retryNow(); highlights.retryNow() }
+    /** Pushes every queue now, skipping any backoff wait: flags, recycle-bin ops, highlights and the routine. */
+    fun flushNow() { progress.retryNow(); trash.retryNow(); highlights.retryNow(); routine.retryNow() }
 }
 
 class SlateApp : Application() {

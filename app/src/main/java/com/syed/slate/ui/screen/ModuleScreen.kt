@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
@@ -131,6 +132,7 @@ class ModuleNav(
     val onEquation: (String) -> Unit,
     val onSql: (String) -> Unit = {},
     val onAdmin: () -> Unit = {},
+    val onRoutine: () -> Unit = {},
 )
 
 /** Section keys that are not database groups. */
@@ -139,6 +141,7 @@ private const val EQUATION = "equation"
 private const val SQL = "sql"
 private const val WRITTEN = "written"
 private const val UTILITY = "utility"
+private const val ROUTINE = "routine"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,7 +189,7 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
                     val sel = selected
                     if (sel == null) SubModuleLauncher(id, s.content) { key ->
                         // General's Written is its own page; every other card opens in place.
-                        if (id == ModuleId.GENERAL && key == WRITTEN) nav.onWritten() else selected = key
+                        if (id == ModuleId.GENERAL && key == WRITTEN) nav.onWritten() else if (key == ROUTINE) nav.onRoutine() else selected = key
                     } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId))
                 }
                 ContentState.Empty -> if (sync !is SyncState.Running) EmptyState(online) { vm.refreshContent(id) }
@@ -435,13 +438,14 @@ private fun sectionIcon(id: ModuleId, key: String): ImageVector = when (key) {
     EQUATION -> Icons.Filled.Functions
     PRACTICE -> Icons.Filled.Code
     SQL -> Icons.Filled.Storage
+    ROUTINE -> Icons.Filled.Checklist
     else -> Icons.Filled.EditNote // written
 }
 
 private fun subModuleTitle(id: ModuleId, key: String): String = when (key) {
     "bangla" -> "বাংলা ব্যাকরণ"; "english" -> "English Grammar"; "sahitya" -> "বাংলা সাহিত্য"
     "gk" -> "সাধারণ জ্ঞান"; "livemcq" -> "LiveMCQ"; WRITTEN -> "Written"; "vocab" -> "Vocabulary"; UTILITY -> "Utility"
-    EQUATION -> "Equation"; PRACTICE -> "Practice"; SQL -> "SQL Lab"
+    EQUATION -> "Equation"; PRACTICE -> "Practice"; SQL -> "SQL Lab"; ROUTINE -> "Routine"
     else -> TopicCatalog.groupTitle(key)
 }
 
@@ -461,9 +465,9 @@ private fun SubModuleLauncher(id: ModuleId, content: ModuleContent, onOpen: (Str
     val groupKeys = content.groups.map { it.key }
     val keys: List<String> = if (id == ModuleId.GENERAL) {
         listOf("bangla", "english", "sahitya", "gk", "livemcq").filter { groupKeys.contains(it) } +
-            listOf(WRITTEN) + (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(UTILITY)
+            listOf(WRITTEN) + (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(UTILITY, ROUTINE)
     } else {
-        listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE, SQL)
+        listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE, SQL, ROUTINE)
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         keys.chunked(2).forEach { row ->

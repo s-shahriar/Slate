@@ -51,6 +51,7 @@ import com.syed.slate.ui.screen.PracticeImportantScreen
 import com.syed.slate.ui.screen.PracticeScreen
 import com.syed.slate.ui.screen.QuizScreen
 import com.syed.slate.ui.screen.ReaderScreen
+import com.syed.slate.ui.screen.RoutineScreen
 import com.syed.slate.ui.screen.SavedScreen
 import com.syed.slate.ui.screen.SettingsScreen
 import com.syed.slate.ui.screen.StudyScreen
@@ -138,6 +139,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onEquation = { t -> nav.navigate("equation/$t") },
                         onSql = { l -> nav.navigate("sql/$l") },
                         onAdmin = { nav.navigate("admin") },
+                        onRoutine = { nav.navigate("routine/${id.key}") },
                         onSearchHit = { item ->
                             val dest = if (LongForm.isLongForm(item)) "read" else "study"
                             nav.navigate("$dest/${id.key}/${item.group}/${item.topic}?focus=${Uri.encode(item.uid ?: "")}")
@@ -190,6 +192,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                 )
             }
         }
+        composable("routine/{m}") { e -> val id = e.module(); Themed(id.scope(), id) { RoutineScreen(vm, id, onBack = { nav.popBackStack() }) } }
         composable("bin/{m}") { e -> val id = e.module(); Themed(id.scope(), id) { BinScreen(vm, id, onBack = { nav.popBackStack() }) } }
         composable("math") { Themed(Scope.GENERAL) { MathFormulasScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("admin") { Themed(Scope.GENERAL, ModuleId.GENERAL) { AdminScreen(vm, onBack = { nav.popBackStack() }) } }
