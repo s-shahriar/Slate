@@ -86,6 +86,7 @@ private class Bridge(
     private val onSelection: () -> ((String) -> Unit),
     private val onMark: () -> ((String) -> Unit),
     private val onPrefer: () -> ((Int?) -> Unit),
+    private val onZoom: (Boolean) -> Unit = {},
 ) {
     private val ui = Handler(Looper.getMainLooper())
     @JavascriptInterface fun toggleImportant(uid: String) { ui.post { onToggle()(uid) } }
@@ -95,6 +96,8 @@ private class Bridge(
     @JavascriptInterface fun onMark(json: String) { ui.post { onMark()(json) } }
     /** SQL Lab: the star on a version tab; -1 clears the preference. */
     @JavascriptInterface fun prefer(v: Int) { ui.post { onPrefer()(v.takeIf { it >= 0 }) } }
+    /** SQL Lab: a step picture opened full screen (true) or closed, so system Back can close it first. */
+    @JavascriptInterface fun zoomed(open: Boolean) { ui.post { onZoom(open) } }
 }
 
 /**
@@ -143,6 +146,8 @@ fun FormulaPage(
     val mark = rememberUpdatedState(onMark)
     val prefer = rememberUpdatedState(onPrefer)
     var web by remember { mutableStateOf<WebView?>(null) }
+    var zoomOpen by remember(html) { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = zoomOpen) { web?.evaluateJavascript("closeVizZoom()", null); zoomOpen = false }
 
     val page = html
     if (page != null) AndroidView(
@@ -157,7 +162,7 @@ fun FormulaPage(
                 setBackgroundColor(palette.bg.toArgb())
                 addJavascriptInterface(Bridge({ toggle.value }, { section.value }, { ready = true },
                     { { json -> if (json.isEmpty()) selection.value("", emptyList()) else runCatching { val o = JSONObject(json); selection.value(o.getString("uid"), o.getJSONArray("anchors").let { a -> List(a.length()) { a.getJSONObject(it).let { x -> com.syed.slate.highlight.Anchored(x.getString("block"), x.getInt("start"), x.getInt("end"), x.getString("quote")) } } }) } } },
-                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }, { prefer.value }), "Slate")
+                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }, { prefer.value }, { zoomOpen = it }), "Slate")
                 // Nothing in these pages links anywhere; refuse any navigation rather than leave the page.
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true

@@ -387,9 +387,36 @@
   .sl-ln { width: 26px; padding-right: 8px; }
 }
 
+/* ── Phones: the step number moves into its card, so the picture gets the rail's width too and runs edge to edge. ── */
+@media (max-width: 600px) {
+  .sl-step { position: relative; gap: 0; }
+  .sl-step-rail { position: absolute; left: 10px; top: 13px; width: auto; z-index: 1; }
+  .sl-step-rail::after { display: none; }
+  .sl-step-num { width: 24px; height: 24px; font-size: 12px; }
+  .sl-step-head { padding-left: 32px; min-height: 24px; }
+  .sl-step-body { padding: 10px 10px 12px; }
+  .sl-step-body .sl-viz-wrap { margin-left: -6px; margin-right: -6px; }
+}
+
+/* ── A tapped picture, full screen (vizZoom.js): 1.25× its natural size, pans both ways; a tap closes it. ── */
+.sl-viz { cursor: zoom-in; }
+.sl-zoom {
+  position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
+  background: var(--sl-bg); cursor: zoom-out;
+  animation: sl-zoom-in .16s ease-out;
+}
+.sl-zoom-pane { flex: 1; overflow: auto; display: flex; padding: 56px 12px 24px; -webkit-overflow-scrolling: touch; }
+.sl-zoom-pane .sl-viz { margin: auto; flex: none; cursor: zoom-out; }
+.sl-zoom-x {
+  position: absolute; top: 10px; right: 10px; z-index: 1; display: grid; place-items: center;
+  width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+  color: var(--sl-ink); background: var(--sl-surface); border: 1px solid var(--sl-line); box-shadow: var(--sl-shadow);
+}
+@keyframes sl-zoom-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* ── Slate: one lesson per WebView; the web page's top bar, rail and lesson strip are native. ── */
 .sl-root { min-height: 0; z-index: auto; }
-.sl-main { max-width: none; padding: 12px 12px 56px; }
+.sl-main { max-width: none; padding: 12px 10px 56px; }
 .sl-data summary { list-style: none; cursor: pointer; }
 .sl-data summary::-webkit-details-marker { display: none; }
 .sl-version[hidden] { display: none; }
@@ -398,7 +425,7 @@
 .sl-root button { background: none; border: 0; color: inherit; font: inherit; }
 /* Sticky schema: one line per table, pinned to the top of the WebView while the steps scroll (the web pins it under its top bar). */
 .sl-schema {
-  position: sticky; top: 0; z-index: 6; margin: 0 -12px 14px; padding: 7px 12px;
+  position: sticky; top: 0; z-index: 6; margin: 0 -10px 14px; padding: 7px 10px;
   background: var(--sl-bg); border-bottom: 1px solid var(--sl-line);
   font-family: var(--sl-mono); font-size: 12px; line-height: 21px; color: var(--sl-ink-3);
   overflow-x: auto; scrollbar-width: none;

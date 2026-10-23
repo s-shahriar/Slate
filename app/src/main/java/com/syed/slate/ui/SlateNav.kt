@@ -94,7 +94,9 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                 CompositionLocalProvider(LocalOpenSyncQueue provides openQueue) {
                     // Inside a module, text can be highlighted and flag edits can be undone: the hosts provide the bars.
                     Box {
-                        UndoHost(m.progress) { HighlightHost(m.highlights, page) }
+                        // ICT: the owner's per-question Category action (MCQ + Written cards).
+                        val hosted = @Composable { UndoHost(m.progress) { HighlightHost(m.highlights, page) } }
+                        if (module == ModuleId.ICT) com.syed.slate.ui.component.CategoryEditHost(m) { hosted() } else hosted()
                         if (showQueue) SyncQueueSheet(m, online) { showQueue = false }
                     }
                 }

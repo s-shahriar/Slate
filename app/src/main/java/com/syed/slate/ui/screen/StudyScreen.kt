@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -178,11 +180,7 @@ fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, 
                         query, { query = it; page = 0 }, Modifier.fillMaxWidth(), singleLine = true,
                         leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Search in this topic") },
                     )
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        StudyFilter.entries.forEach { f ->
-                            FilterChip(filter == f, { filter = f; page = 0 }, { Text("${f.label} (${counts[f] ?: 0})", maxLines = 1, softWrap = false) })
-                        }
-                    }
+                    SlateDropdown(StudyFilter.entries.map { f -> DropOption(f, f.label, counts[f] ?: 0) }, filter, { filter = it; page = 0 })
                     Text("${visible.size} of ${scoped.size} questions", style = MaterialTheme.typography.labelMedium, color = LocalPalette.current.text3)
                 }
             }

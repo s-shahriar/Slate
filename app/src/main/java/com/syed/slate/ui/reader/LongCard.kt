@@ -1,5 +1,6 @@
 package com.syed.slate.ui.reader
 
+import com.syed.slate.ui.component.categoryEditable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,6 +74,13 @@ fun LongCard(
         // The listing the card is about, visible while collapsed.
         item.headerCode?.let { CodeBlock(it, item.headerCodeLang, uid = item.uid, block = "headerCode") }
         if (open) item.answer?.let { WrittenBody(it, uid = item.uid) }
-        item.uid?.let { FlagBar(flag, it, progress, itemId = item.id) }
+        item.uid?.let { LongFlagBar(item, flag, it, progress) }
     }
+}
+
+/** A long card's flag bar; Written cards get the owner's Category action (CategoryEdit). Also used by the pinned bar. */
+@Composable
+fun LongFlagBar(item: Item, flag: Flag, uid: String, progress: ProgressRepository) {
+    val catEdit = com.syed.slate.ui.component.LocalCategoryEdit.current?.takeIf { item.categoryEditable() }
+    FlagBar(flag, uid, progress, itemId = item.id, onTopicEdit = catEdit?.let { edit -> { edit(item) } }, topicLabel = "Category")
 }

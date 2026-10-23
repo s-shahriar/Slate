@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -104,12 +106,10 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item { FilterChip(topic == null, { topic = null; page = 0 }, { Text("All topics · ${saved.size}") }) }
-                    items(perTopic.entries.toList(), key = { it.key }) { (key, n) ->
-                        FilterChip(topic == key, { topic = key; page = 0 }, { Text("${topicNames[key] ?: key} · $n") })
-                    }
-                }
+                SlateDropdown(
+                    listOf(DropOption<String?>(null, "All topics", saved.size)) + perTopic.entries.map { (key, n) -> DropOption<String?>(key, topicNames[key] ?: key, n) },
+                    topic, { topic = it; page = 0 },
+                )
             }
             if (kind == PoolSet.IMPORTANT) item {
                 // SpaceBetween is symmetric, so the mirror swaps the switch and the destructive button to opposite edges.

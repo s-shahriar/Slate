@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -143,7 +144,7 @@ fun ExplanationBox(module: ModuleId, html: String, correct: Boolean?, modifier: 
 
 /** Nailed / Important / Weak / Note for one question; Weak only appears once a question is Important and not Nailed. */
 @Composable
-fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Modifier = Modifier, labels: Boolean = false, itemId: String? = null, onDeleted: () -> Unit = {}, onTopicEdit: (() -> Unit)? = null) {
+fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Modifier = Modifier, labels: Boolean = false, itemId: String? = null, onDeleted: () -> Unit = {}, onTopicEdit: (() -> Unit)? = null, topicLabel: String = "Topic") {
     val p = LocalPalette.current
     var peekOpen by remember { mutableStateOf(false) }
     var editorOpen by remember { mutableStateOf(false) }
@@ -162,14 +163,30 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
         // A saved note also glares (NoteGlow) so an annotated question stands out — the only chip that animates.
         add(Spec(Icons.Filled.EditNote, "Note", flag.note != null, primary, false, glow = flag.note != null) { if (flag.note != null) peekOpen = true else editorOpen = true })
         // The web's owner-only QuestionEditButton (LiveMCQ): move the question to another topic / sub-topic.
-        if (onTopicEdit != null) add(Spec(Icons.AutoMirrored.Filled.Label, "Topic", false, primary, true) { onTopicEdit() })
+        if (onTopicEdit != null) add(Spec(Icons.AutoMirrored.Filled.Label, topicLabel, false, primary, true) { onTopicEdit() })
         if (trash != null && itemId != null) add(Spec(Icons.Filled.Delete, "Delete", false, p.bad, true) { confirmTrash = true })
     }
     if (!labels) {
         // Study / Written cards: a compact cluster of icon chips on the hand-toggle edge (the mirror flips it).
         HandMirror {
+            // Two or more rare actions (Category / Topic + Delete) fold into one ⋯ chip, like the web's MoreMenu, so the
+            // row never outgrows a phone.
+            val rare = specs.filter { it.secondary }.takeIf { it.size > 1 }.orEmpty()
             Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                specs.forEach { sp -> IconFlagChip(sp.icon, sp.label, sp.on, sp.color, sp.glow, sp.onClick) }
+                (specs - rare.toSet()).forEach { sp -> IconFlagChip(sp.icon, sp.label, sp.on, sp.color, sp.glow, sp.onClick) }
+                if (rare.isNotEmpty()) Box {
+                    var more by remember { mutableStateOf(false) }
+                    IconFlagChip(Icons.Filled.MoreVert, "More actions", false, primary) { more = true }
+                    androidx.compose.material3.DropdownMenu(more, { more = false }, Modifier.background(p.surface)) {
+                        rare.forEach { sp ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(sp.label) },
+                                leadingIcon = { Icon(sp.icon, null, tint = if (sp.color == p.bad) p.bad else p.text2) },
+                                onClick = { more = false; sp.onClick() },
+                            )
+                        }
+                    }
+                }
             }
         }
     } else {

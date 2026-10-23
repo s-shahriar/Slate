@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -133,8 +135,6 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
     var nonce by remember { mutableIntStateOf(0) }
     // Math cards are keyed "m<hash>"; question uids start with "q", so the prefix keeps the two apart.
     val important = remember(flags) { flags.filter { it.key.startsWith("m") && it.value.important }.keys }
-    val chips = rememberLazyListState()
-    LaunchedEffect(active) { sections.indexOfFirst { it.id == active }.takeIf { it >= 0 }?.let { chips.animateScrollToItem(it) } }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -155,15 +155,12 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            if (!importantOnly) LazyRow(state = chips, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(sections, key = { it.id }) { s ->
-                    val color = TopicColors.parse(s.color, p.isDark, p.primary)
-                    FilterChip(
-                        active == s.id, { target = s.id; nonce++ }, { Text("${s.icon} ${s.label}") },
-                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = color.copy(alpha = .18f), selectedLabelColor = color),
-                    )
-                }
-            }
+            // Jump to a section; follows the section scrolled into view.
+            if (!importantOnly && sections.isNotEmpty()) SlateDropdown(
+                sections.map { s -> DropOption(s.id, "${s.icon} ${s.label}", color = TopicColors.parse(s.color, p.isDark, p.primary)) },
+                active, { target = it; active = it; nonce++ },
+                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
             if (cover) CoverBanner()
             Box(Modifier.fillMaxSize()) {
                 FormulaPage(
@@ -219,11 +216,11 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            if (topic.groups.size > 1) LazyRow(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(topic.groups, key = { it.id }) { g ->
-                    FilterChip(active == "eq-${g.id}", { target = "eq-${g.id}"; nonce++ }, { Text(g.title) })
-                }
-            }
+            if (topic.groups.size > 1) SlateDropdown(
+                topic.groups.map { g -> DropOption("eq-${g.id}", g.title) },
+                active, { target = it; active = it; nonce++ },
+                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
             if (cover) CoverBanner()
             val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
             val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()

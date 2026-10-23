@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -182,16 +184,10 @@ fun DataCardsScreen(title: String, searchHint: String, categories: List<Pair<Str
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item { FilterChip(cat == null, { cat = null }, { Text("সব") }) }
-                        items(categories.map { it.first }, key = { it }) { name ->
-                            val color = catColor[name] ?: Color.Gray
-                            FilterChip(
-                                cat == name, { cat = name }, { Text(name) },
-                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = color.copy(alpha = .18f), selectedLabelColor = color),
-                            )
-                        }
-                    }
+                    SlateDropdown(
+                        listOf(DropOption<String?>(null, "সব")) + categories.map { it.first }.map { name -> DropOption<String?>(name, name, color = catColor[name] ?: Color.Gray) },
+                        cat, { cat = it },
+                    )
                     OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
                         leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text(searchHint) })
                 }

@@ -164,7 +164,23 @@ class ContentRepository(
                 "&module=in.(mcq,written,extra,viva)&order=id",
         ) { progress("Questions", it) }
         val items = rows.map { r -> toIctItem(r) }
-        return TopicCatalog.build(module, items, emptyMap(), emptyMap(), emptyList(), now)
+        val (names, sort) = ictCatalog()
+        return TopicCatalog.build(module, items, names, sort, emptyList(), now)
+    }
+
+    /**
+     * ICT topic names and order from `categories` (the same table the web's catalog reads), keyed per group like
+     * General's ("written/dsa"). Before that table existed they were hardcoded; a failed fetch falls back to them.
+     */
+    private suspend fun ictCatalog(): Pair<Map<String, String>, Map<String, Int>> {
+        val cats = runCatching { db.selectAll("categories", "select=slug,name,sort_order&order=sort_order,slug") }.getOrNull()
+            ?: return emptyMap<String, String>() to emptyMap()
+        val names = HashMap<String, String>(); val sort = HashMap<String, Int>()
+        for (c in cats) for (g in listOf("mcq", "written", "extra", "viva")) {
+            val key = "$g/${c.getString("slug")}"
+            names[key] = c.optString("name"); sort[key] = c.optInt("sort_order")
+        }
+        return names to sort
     }
 
     private fun toIctItem(r: org.json.JSONObject): Item {
@@ -272,7 +288,7 @@ class ContentRepository(
                 val wcards = db.selectAll("written_cards", "select=category_id,serial,icon,title,subtitle,body,tip,issues,benefits,sort_order&topic=eq.data&order=sort_order")
                 TopicCatalog.build(module, items, names, sort, subs, now, wcats, wcards)
             }
-            ModuleId.ICT -> TopicCatalog.build(module, items, emptyMap(), emptyMap(), emptyList(), now)
+            ModuleId.ICT -> ictCatalog().let { (names, sort) -> TopicCatalog.build(module, items, names, sort, emptyList(), now) }
         }
     }
 

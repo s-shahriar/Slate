@@ -57,3 +57,39 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/* Tap a step picture and it opens full screen at 1.25× its natural size, pannable; any tap there (or the ✕) closes it.
+   A tap that ends a text selection does nothing. Port of ict-quiz src/components/sql/vizZoom.js — keep them in step. */
+(function () {
+  var SCALE = 1.25;
+  var open = null;
+  function tell(v) { if (window.Slate && window.Slate.zoomed) window.Slate.zoomed(v); }
+  function close() { if (open) { open.parentNode.removeChild(open); open = null; tell(false); } }
+  document.addEventListener('click', function (ev) {
+    if (open) return;
+    var svg = ev.target.closest && ev.target.closest('.sl-viz');
+    if (!svg) return;
+    if (String(window.getSelection ? window.getSelection() : '').trim()) return;
+    var vb = svg.viewBox && svg.viewBox.baseVal;
+    var copy = svg.cloneNode(true);
+    var w = Math.max(Math.round(((vb && vb.width) || svg.clientWidth) * SCALE), window.innerWidth - 24);
+    copy.removeAttribute('style');
+    copy.style.width = w + 'px';
+    copy.style.maxWidth = 'none';
+    var layer = document.createElement('div');
+    layer.className = 'sl-zoom';
+    layer.innerHTML = '<button class="sl-zoom-x" aria-label="Close"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    var pane = document.createElement('div');
+    pane.className = 'sl-zoom-pane';
+    pane.appendChild(copy);
+    layer.appendChild(pane);
+    layer.addEventListener('click', function (e) { e.stopPropagation(); close(); });
+    (document.querySelector('.sl-root') || document.body).appendChild(layer);
+    open = layer;
+    tell(true);
+    var r = svg.getBoundingClientRect();
+    var fx = r.width ? (ev.clientX - r.left) / r.width : 0.5;
+    pane.scrollLeft = Math.max(0, fx * pane.scrollWidth - pane.clientWidth / 2);
+  });
+  window.closeVizZoom = function () { if (!open) return false; close(); return true; };
+})();

@@ -10,7 +10,10 @@ Slate must never hold content of its own. Everything it shows comes from the two
 (`BlobRepository`). **Never add or edit content in Slate's `assets/` or Kotlin** — and when the user adds content in a web
 project, make sure it reached the DB (see that project's `CLAUDE.md`) and, for the math/equation pages, that
 `node tools/prerender/build.mjs` was run so the rendered row is current. Only code, css, fonts and scripts may be bundled.
-Known exception: topic names (`ContentModels.kt`) and colours are still hardcoded here and in the web apps.
+Topic names and order come from each project's `categories` table (General: always; ICT: `ContentRepository.ictCatalog`,
+since 2026-10-23), so a category change in the DB shows after a Refresh. `TopicCatalog.ictTopicNames` is only the fallback
+when that fetch fails. ICT owner: ⋯ › Category on MCQ / Written cards (`ui/component/CategoryEdit.kt`, RPC `admin_set_category`).
+Filters / topic pickers use `ui/component/Dropdown.kt` (`SlateDropdown`), never a horizontally scrolling chip row.
 
 ## Backends — two separate Supabase projects
 | Module | Project ref | Notes |

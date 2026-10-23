@@ -1,5 +1,6 @@
 package com.syed.slate.ui.quiz
 
+import com.syed.slate.ui.component.categoryEditable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -88,7 +89,13 @@ fun StudyCard(
             else TextButton(onClick = { selected = null; explOpen = false }) { Text("লুকাও") }
         }
         item.uid?.let { uid ->
-            FlagBar(flag, uid, progress, itemId = item.id, onTopicEdit = onLiveMcqEdit?.let { edit -> { edit(item) } })
+            // LiveMCQ: topic / sub-topic; ICT MCQ: category (owner only, see CategoryEdit).
+            val catEdit = com.syed.slate.ui.component.LocalCategoryEdit.current?.takeIf { item.categoryEditable() }
+            FlagBar(
+                flag, uid, progress, itemId = item.id,
+                onTopicEdit = onLiveMcqEdit?.let { edit -> { edit(item) } } ?: catEdit?.let { edit -> { edit(item) } },
+                topicLabel = if (onLiveMcqEdit != null) "Topic" else "Category",
+            )
         }
     }
 }

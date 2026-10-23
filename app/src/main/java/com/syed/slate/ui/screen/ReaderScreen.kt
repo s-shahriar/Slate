@@ -217,7 +217,7 @@ fun ReaderScreen(
                 onJump = { peekState?.second?.let { i -> scope.launch { list.animateScrollToItem(i) } } },
                 modifier = Modifier.align(Alignment.TopCenter),
                 // The open card's own flag bar, so it is reachable mid-answer (it also sits at the card's end).
-                actions = peekState?.first?.item?.let { item -> item.uid?.let { uid -> { FlagBar(flags[uid] ?: Flag(), uid, m.progress, itemId = item.id) } } },
+                actions = peekState?.first?.item?.let { item -> item.uid?.let { uid -> { com.syed.slate.ui.reader.LongFlagBar(item, flags[uid] ?: Flag(), uid, m.progress) } } },
             )
         }
     }

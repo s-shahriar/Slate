@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -618,11 +620,10 @@ private fun ManagePanel(
             StyledSelect(subFilter, catalog.subList(cat).map { it.slug to it.name } + (NO_SUB to "No sub-topic"), { subFilter = it; page = 0 }, Modifier.fillMaxWidth(), allLabel = "All sub-topics")
         }
         if (importsOnly) item(key = "markfilter") {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf("all" to "সব (${inScope.size})", "important" to "Important (${markCounts.first})", "weak" to "Weak (${markCounts.second})").forEach { (k, label) ->
-                    androidx.compose.material3.FilterChip(mark == k, { mark = k; page = 0 }, { Text(label, maxLines = 1, softWrap = false) })
-                }
-            }
+            SlateDropdown(
+                listOf(DropOption("all", "সব", inScope.size), DropOption("important", "Important", markCounts.first), DropOption("weak", "Weak", markCounts.second)),
+                mark, { mark = it; page = 0 },
+            )
         }
         if (notice.isNotEmpty()) item(key = "notice") {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(p.ok.copy(alpha = .12f)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

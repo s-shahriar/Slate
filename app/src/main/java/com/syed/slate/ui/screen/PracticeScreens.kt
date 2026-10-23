@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import com.syed.slate.ui.component.SlateDropdown
+import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -255,10 +257,10 @@ fun PracticeImportantScreen(vm: SlateViewModel, onBack: () -> Unit) {
                 ScopeChip("শুধু Weak (${count(PoolSet.WEAK, null)})", weakOnly, p.warn) { weakOnly = true }
             }
             Text("কোনটা practice করবে", style = MaterialTheme.typography.labelMedium, color = p.text3)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScopeChip("সব (${count(set, null)})", runScope == "all", MaterialTheme.colorScheme.primary) { scope = "all" }
-                scopes.forEach { c -> ScopeChip("${c.name} (${count(set, c.id)})", runScope == c.id, MaterialTheme.colorScheme.primary) { scope = c.id } }
-            }
+            SlateDropdown(
+                listOf(DropOption("all", "সব", count(set, null))) + scopes.map { c -> DropOption(c.id, c.name, count(set, c.id)) },
+                runScope, { scope = it },
+            )
             if (drills.isEmpty()) {
                 Text(
                     if (weakOnly) "এখনো কোনো Weak practice নেই।" else "কোনো important practice নেই — Practice বা Commands tab-এ 🔖 দিয়ে যোগ করো।",
