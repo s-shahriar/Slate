@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material.icons.outlined.WbTwilight
@@ -90,6 +91,10 @@ import androidx.compose.ui.unit.dp
 import com.syed.slate.backend.ModuleId
 import com.syed.slate.routine.RoutineItem
 import com.syed.slate.routine.RoutineOps
+import com.syed.slate.routine.RoutineOption
+import com.syed.slate.routine.RoutineRepository
+import com.syed.slate.ui.component.DropOption
+import com.syed.slate.ui.component.SlateDropdown
 import com.syed.slate.routine.RoutineSubject
 import com.syed.slate.routine.Slot
 import com.syed.slate.ui.SlateViewModel
@@ -162,7 +167,13 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
     val byDay = remember(all) { all.values.groupBy { it.day } }
     val subjects = byDay[dayText].orEmpty()
     val prog = progressOf(subjects)
-    val suggestions = remember(all) { RoutineOps.PRESET_ITEMS + RoutineOps.customLabels(all.values) }
+    val options by repo.options.collectAsState()
+    val topics = remember(options) { options.filter { it.kind == RoutineOption.TOPIC } }
+    val tasks = remember(options) { options.filter { it.kind == RoutineOption.TASK } }
+    val suggestions = remember(all, tasks) {
+        val known = tasks.map { it.label }.ifEmpty { RoutineOps.PRESET_ITEMS }
+        known + RoutineOps.customLabels(all.values, known)
+    }
     val lastPlanned = byDay.keys.filter { it < dayText }.maxOrNull()
 
     fun copyFrom(from: String) {
@@ -315,6 +326,7 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
         null -> Unit
         is Sheet.Add -> SubjectSheet(
             dayLabel = day.short(), initial = RoutineSubject("", dayText, s.slot, "", false, emptyList(), 0.0, ""), suggestions = suggestions,
+            topics = topics, tasks = tasks, repo = repo,
             onSave = { title, sl, items -> repo.add(dayText, sl, title, items.map { it.label }); sheet = null },
             onClose = { sheet = null },
         )
@@ -327,6 +339,7 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
                 val i = list.indexOfFirst { it.id == subject.id }
                 SubjectSheet(
                     dayLabel = day.short(), initial = subject, suggestions = suggestions,
+                    topics = topics, tasks = tasks, repo = repo,
                     canUp = i > 0, canDown = i in 0 until list.lastIndex, onMove = { dir -> repo.move(subject.id, dir) },
                     onDelete = { repo.delete(subject.id); sheet = null; Notices.post(Notice("Deleted “${subject.title}”", Notice.Kind.OK)) },
                     onSave = { title, sl, items -> repo.edit(subject.id, title, sl, items); sheet = null },
@@ -479,10 +492,10 @@ private fun SubjectRow(n: Int, s: RoutineSubject, onToggle: (String) -> Unit, on
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ItemPicker(suggestions: List<String>, modifier: Modifier = Modifier, onAdd: (String) -> Unit) {
+private fun ItemPicker(suggestions: List<String>, modifier: Modifier = Modifier, onTyped: (String) -> Unit, onAdd: (String) -> Unit) {
     val p = LocalPalette.current
     var text by rememberSaveable { mutableStateOf("") }
-    fun submit() { if (text.isNotBlank()) { onAdd(text); text = "" } }
+    fun submit() { if (text.isNotBlank()) { onTyped(text); text = "" } }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(9.dp)) {
         if (suggestions.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             suggestions.forEach { l ->
@@ -514,6 +527,7 @@ private fun ItemPicker(suggestions: List<String>, modifier: Modifier = Modifier,
 @Composable
 private fun SubjectSheet(
     dayLabel: String, initial: RoutineSubject, suggestions: List<String>,
+    topics: List<RoutineOption>, tasks: List<RoutineOption>, repo: RoutineRepository,
     onSave: (String, Slot, List<RoutineItem>) -> Unit, onClose: () -> Unit,
     onDelete: (() -> Unit)? = null, onMove: (Int) -> Unit = {}, canUp: Boolean = false, canDown: Boolean = false,
 ) {
@@ -523,10 +537,23 @@ private fun SubjectSheet(
     var slot by remember(initial.id) { mutableStateOf(initial.slot) }
     val items = remember(initial.id) { mutableStateListOf<RoutineItem>().apply { addAll(initial.items) } }
     var confirm by remember { mutableStateOf<String?>(null) } // null | "save" | "delete"
+    var newTopic by remember { mutableStateOf<String?>(null) } // null | text of a topic being added
+    var manage by remember { mutableStateOf<String?>(null) }   // null | RoutineOption.TOPIC | TASK
     val focus = remember { FocusRequester() }
-    if (!isEdit) LaunchedEffect(Unit) { delay(250); runCatching { focus.requestFocus() } }
+    if (newTopic != null) LaunchedEffect(Unit) { delay(150); runCatching { focus.requestFocus() } }
     val present = items.map { it.label.lowercase() }.toSet()
     fun addLabel(l: String) { val c = RoutineOps.clean(l); if (c.isNotEmpty() && c.lowercase() !in present) { items.add(RoutineItem(com.syed.slate.routine.newId(), c, false)); confirm = null } }
+    // The Topic dropdown: the saved topics, the current title when it is not one of them (an older plan), and
+    // "+ New topic…" at the foot.
+    val known = topics.firstOrNull { it.label.lowercase() == RoutineOps.clean(title).lowercase() }
+    val topicValue = known?.label ?: RoutineOps.clean(title)
+    val topicOptions = buildList {
+        if (topicValue.isEmpty()) add(DropOption("", "Choose a topic…"))
+        topics.forEach { add(DropOption(it.label, it.label)) }
+        if (topicValue.isNotEmpty() && known == null) add(DropOption(topicValue, "$topicValue (not in the list)"))
+        add(DropOption(NEW_TOPIC, "+ New topic…"))
+    }
+    fun saveNewTopic() { repo.addOption(RoutineOption.TOPIC, newTopic.orEmpty())?.let { title = it.label; newTopic = null; confirm = null } }
     val dirty = RoutineOps.clean(title) != initial.title || slot != initial.slot || items.map { it.label } != initial.items.map { it.label }
     fun save() {
         if (title.isBlank()) return
@@ -538,18 +565,40 @@ private fun SubjectSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onClose, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = p.surface) {
-        Column(Modifier.fillMaxWidth().imePadding()) {
+        val m = manage
+        if (m != null) Column(Modifier.fillMaxWidth().imePadding()) {
+            OptionManager(m, if (m == RoutineOption.TOPIC) topics else tasks, repo, Modifier.weight(1f, fill = false))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(p.outline))
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.End) {
+                RtButton("Done", solid = true) { manage = null }
+            }
+        } else Column(Modifier.fillMaxWidth().imePadding()) {
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column {
                     Text(if (isEdit) "Edit subject" else "New subject", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     Text(dayLabel, style = MaterialTheme.typography.labelMedium, color = p.text3)
                 }
-                OutlinedTextField(
-                    title, { title = it; confirm = null }, Modifier.fillMaxWidth().focusRequester(focus), placeholder = { Text("Subject, e.g. Cloud Computing") },
-                    singleLine = true, shape = RoundedCornerShape(12.dp), textStyle = MaterialTheme.typography.titleMedium,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { save() }),
-                )
+                Text("TOPIC", style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SlateDropdown(
+                        topicOptions, if (newTopic != null) NEW_TOPIC else topicValue,
+                        { v -> if (v == NEW_TOPIC) newTopic = "" else { title = v; newTopic = null; confirm = null } },
+                        Modifier.weight(1f),
+                    )
+                    IconButton(onClick = { manage = RoutineOption.TOPIC }) { Icon(Icons.Filled.Tune, "Edit the topic list", tint = p.text2) }
+                }
+                newTopic?.let { nt ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            nt, { newTopic = it }, Modifier.weight(1f).focusRequester(focus), placeholder = { Text("New topic, e.g. Compiler Design") },
+                            singleLine = true, shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { saveNewTopic() }),
+                        )
+                        RtButton("Add", solid = true, enabled = nt.isNotBlank()) { saveNewTopic() }
+                        IconButton(onClick = { newTopic = null }, Modifier.size(40.dp)) { Icon(Icons.Filled.Close, "Cancel", tint = p.text2) }
+                    }
+                }
                 Slot.entries.chunked(2).forEach { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         row.forEach { s ->
@@ -566,7 +615,17 @@ private fun SubjectSheet(
                         }
                     }
                 }
-                Text("TASKS", style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("TASKS", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
+                    Row(
+                        Modifier.clip(RoundedCornerShape(8.dp)).clickable { manage = RoutineOption.TASK }.padding(horizontal = 6.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Tune, null, Modifier.size(14.dp), tint = p.primary)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Edit list", style = MaterialTheme.typography.labelMedium, color = p.primary, fontWeight = FontWeight.Bold)
+                    }
+                }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     if (items.isEmpty()) Text("None yet — pick from below.", style = MaterialTheme.typography.bodySmall, color = p.text3)
                     items.toList().forEach { it ->
@@ -583,7 +642,11 @@ private fun SubjectSheet(
                         }
                     }
                 }
-                ItemPicker(suggestions.filter { it.lowercase() !in present }) { addLabel(it) }
+                ItemPicker(
+                    suggestions.filter { it.lowercase() !in present },
+                    // A task typed in "Other task…" joins the saved task list too.
+                    onTyped = { l -> repo.addOption(RoutineOption.TASK, l)?.let { addLabel(it.label) } },
+                ) { addLabel(it) }
                 Spacer(Modifier.height(4.dp))
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(p.outline))
@@ -617,6 +680,84 @@ private fun SubjectSheet(
     }
 }
 
+
+private const val NEW_TOPIC = "\u0000new"
+
+/** The saved Topic / Task list, edited inside the sheet: rename (plans that use the old name follow), reorder, delete (plans keep their text), add. */
+@Composable
+private fun OptionManager(kind: String, list: List<RoutineOption>, repo: RoutineRepository, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    var editing by remember { mutableStateOf<Pair<String, String>?>(null) } // id to text
+    var deleting by remember { mutableStateOf<String?>(null) }
+    var text by rememberSaveable { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    fun saveRename() {
+        val (id, t) = editing ?: return
+        if (t.isBlank()) return
+        if (repo.renameOption(id, t)) { editing = null; error = null } else error = "“${t.trim()}” is already in the list."
+    }
+    fun add() {
+        if (text.isBlank()) return
+        if (list.any { it.label.lowercase() == RoutineOps.clean(text).lowercase() }) { error = "“${text.trim()}” is already in the list."; return }
+        repo.addOption(kind, text); text = ""; error = null
+    }
+    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(if (kind == RoutineOption.TOPIC) "Topics" else "Tasks", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+        Text("Renaming also renames it in plans that use it. Deleting only removes it from this list.", style = MaterialTheme.typography.bodySmall, color = p.text3)
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).border(1.dp, p.outline, RoundedCornerShape(14.dp))) {
+            if (list.isEmpty()) Text("Nothing yet — add one below.", Modifier.padding(14.dp), style = MaterialTheme.typography.bodySmall, color = p.text3)
+            list.forEachIndexed { i, o ->
+                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(p.outline))
+                val e = editing
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 52.dp).background(if (deleting == o.id) p.bad.copy(alpha = .10f) else Color.Transparent)
+                        .padding(start = 6.dp, end = 2.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    when {
+                        e?.first == o.id -> {
+                            OutlinedTextField(
+                                e.second, { editing = o.id to it; error = null }, Modifier.weight(1f), singleLine = true, shape = RoundedCornerShape(10.dp),
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { saveRename() }),
+                            )
+                            IconButton(onClick = { saveRename() }) { Icon(Icons.Filled.Check, "Save name", tint = p.primary) }
+                            IconButton(onClick = { editing = null; error = null }) { Icon(Icons.Filled.Close, "Cancel", tint = p.text2) }
+                        }
+                        deleting == o.id -> {
+                            Text("Delete “${o.label}”?", Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            RtButton("No", ghost = true) { deleting = null }
+                            Spacer(Modifier.width(4.dp))
+                            RtButton("Delete", danger = true) { repo.deleteOption(o.id); deleting = null }
+                        }
+                        else -> {
+                            Text(
+                                o.label, Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { editing = o.id to o.label; deleting = null; error = null }
+                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            IconButton(onClick = { editing = o.id to o.label; deleting = null; error = null }, Modifier.size(40.dp)) { Icon(Icons.Filled.Edit, "Rename ${o.label}", Modifier.size(18.dp), tint = p.text2) }
+                            IconButton(onClick = { repo.moveOption(o.id, -1) }, Modifier.size(40.dp), enabled = i > 0) { Icon(Icons.Filled.ArrowUpward, "Move up", Modifier.size(18.dp)) }
+                            IconButton(onClick = { repo.moveOption(o.id, 1) }, Modifier.size(40.dp), enabled = i < list.lastIndex) { Icon(Icons.Filled.ArrowDownward, "Move down", Modifier.size(18.dp)) }
+                            IconButton(onClick = { deleting = o.id; editing = null }, Modifier.size(40.dp)) { Icon(Icons.Filled.DeleteOutline, "Delete ${o.label}", Modifier.size(19.dp), tint = p.bad) }
+                        }
+                    }
+                }
+            }
+        }
+        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = p.bad, fontWeight = FontWeight.SemiBold) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                text, { text = it; error = null }, Modifier.weight(1f), placeholder = { Text(if (kind == RoutineOption.TOPIC) "New topic…" else "New task…") },
+                singleLine = true, shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { add() }),
+            )
+            RtButton("Add", enabled = text.isNotBlank()) { add() }
+        }
+        Spacer(Modifier.height(4.dp))
+    }
+}
 
 @Composable
 private fun RtButton(

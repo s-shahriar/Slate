@@ -47,6 +47,23 @@ data class RoutineSubject(
     }
 }
 
+/**
+ * One choice of the add/edit sheet's pick lists (`routine_options`, shared with the web): a topic for the Topic
+ * dropdown or a task for the task chips. [position] orders each list.
+ */
+data class RoutineOption(val id: String, val kind: String, val label: String, val position: Double, val updatedAt: String) {
+    fun toJson(): JSONObject = JSONObject()
+        .put("id", id).put("kind", kind).put("label", label).put("position", position).put("updated_at", updatedAt)
+
+    companion object {
+        const val TOPIC = "topic"
+        const val TASK = "task"
+        fun fromJson(o: JSONObject) = RoutineOption(
+            o.getString("id"), o.optString("kind"), o.optString("label"), o.optDouble("position", 0.0), o.optString("updated_at"),
+        )
+    }
+}
+
 fun newId(): String = UUID.randomUUID().toString()
 
 /** Pure edits on the list of subjects; the repository applies them and queues what changed. */
@@ -80,9 +97,9 @@ object RoutineOps {
         }
     }
 
-    /** Item labels used before that are not presets, most used first. */
-    fun customLabels(all: Collection<RoutineSubject>): List<String> {
-        val preset = PRESET_ITEMS.map { it.lowercase() }.toSet()
+    /** Item labels used before that are not in [known] (the task list), most used first. */
+    fun customLabels(all: Collection<RoutineSubject>, known: List<String> = PRESET_ITEMS): List<String> {
+        val preset = known.map { it.lowercase() }.toSet()
         val count = LinkedHashMap<String, Pair<String, Int>>()
         all.forEach { s -> s.items.forEach { it ->
             val k = it.label.lowercase()
