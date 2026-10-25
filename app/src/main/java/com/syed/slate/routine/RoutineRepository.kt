@@ -24,6 +24,9 @@ import java.time.Instant
  *
  * The add/edit sheet's pick lists (`routine_options`: Topic dropdown, task chips) ride the same cache, queue and
  * flusher in their own files and their own pending map.
+ *
+ * Ticks are held: a tick changes [subjects] and the local queue at once but is not sent until [saveTicks] (the Save
+ * bar), so a run of ticks goes up in one call. Any other edit flushes as before and takes held ticks along.
  */
 class RoutineRepository(
     context: Context,
@@ -32,7 +35,7 @@ class RoutineRepository(
     private val db: Postgrest,
     private val scope: CoroutineScope,
 ) {
-    private class Pending(val delete: Boolean, val row: RoutineSubject?, val at: Long)
+    private class Pending(val delete: Boolean, val row: RoutineSubject?, val at: Long, val held: Boolean = false)
 
     private val cacheFile = File(context.filesDir, "routine_${module.key}.json")
     private val queueFile = File(context.filesDir, "routine_queue_${module.key}.json")
@@ -52,6 +55,9 @@ class RoutineRepository(
     val subjects: StateFlow<Map<String, RoutineSubject>> = _subjects
     private val _pendingCount = MutableStateFlow(0)
     val pendingCount: StateFlow<Int> = _pendingCount
+    private val _heldCount = MutableStateFlow(0)
+    /** Subjects with ticks not sent yet (waiting for Save). */
+    val heldCount: StateFlow<Int> = _heldCount
     private val _failure = MutableStateFlow<String?>(null)
     /** The last refresh or flush failure, cleared on the next success. */
     val failure: StateFlow<String?> = _failure
@@ -63,7 +69,7 @@ class RoutineRepository(
             val o = JSONObject(queueFile.readText())
             o.keys().forEach { id ->
                 val p = o.getJSONObject(id)
-                pending[id] = Pending(p.optBoolean("delete"), p.optJSONObject("row")?.let(RoutineSubject::fromJson), p.optLong("at"))
+                pending[id] = Pending(p.optBoolean("delete"), p.optJSONObject("row")?.let(RoutineSubject::fromJson), p.optLong("at"), p.optBoolean("held"))
             }
         }
         runCatching { JSONArray(optCacheFile.readText()).let { a -> for (i in 0 until a.length()) RoutineOption.fromJson(a.getJSONObject(i)).let { opts[it.id] = it } } }
@@ -80,14 +86,16 @@ class RoutineRepository(
 
     private fun publish() {
         _subjects.value = LinkedHashMap(rows)
-        _options.value = opts.values.sortedWith(compareBy<RoutineOption> { it.position }.thenBy { it.label })
-        _pendingCount.value = pending.size + optPending.size
+        _options.value = opts.values.filter { !it.expired() }.sortedWith(compareBy<RoutineOption> { it.position }.thenBy { it.label })
+        val held = pending.values.count { it.held }
+        _heldCount.value = held
+        _pendingCount.value = pending.size - held + optPending.size
     }
 
     private fun persist() {
         cacheFile.writeAtomic(JSONArray().also { a -> rows.values.forEach { a.put(it.toJson()) } }.toString())
         queueFile.writeAtomic(JSONObject().also { o ->
-            pending.forEach { (id, p) -> o.put(id, JSONObject().put("delete", p.delete).put("at", p.at).apply { p.row?.let { put("row", it.toJson()) } }) }
+            pending.forEach { (id, p) -> o.put(id, JSONObject().put("delete", p.delete).put("at", p.at).put("held", p.held).apply { p.row?.let { put("row", it.toJson()) } }) }
         }.toString())
         optCacheFile.writeAtomic(JSONArray().also { a -> opts.values.forEach { a.put(it.toJson()) } }.toString())
         optQueueFile.writeAtomic(JSONObject().also { o ->
@@ -98,15 +106,32 @@ class RoutineRepository(
 
     private fun stamp() = Instant.now().toString()
 
-    private fun queue(changed: List<RoutineSubject>, deleted: List<String> = emptyList()) {
+    private fun queue(changed: List<RoutineSubject>, deleted: List<String> = emptyList(), held: Boolean = false) {
         if (changed.isEmpty() && deleted.isEmpty()) return
+        var sendNow = !held
         synchronized(lock) {
             val now = System.currentTimeMillis()
-            changed.forEach { val r = it.copy(updatedAt = stamp()); rows[r.id] = r; pending[r.id] = Pending(false, r, now) }
+            changed.forEach {
+                val r = it.copy(updatedAt = stamp()); rows[r.id] = r
+                // A held tick on top of an edit still waiting to go stays unheld.
+                val keepHeld = held && (pending[r.id]?.held ?: true)
+                if (!keepHeld) sendNow = true
+                pending[r.id] = Pending(false, r, now, keepHeld)
+            }
             deleted.forEach { rows.remove(it); pending[it] = Pending(true, null, now) }
             persist()
         }
-        kick()
+        if (sendNow) kick()
+    }
+
+    /** The Save bar: un-hold every tick and send the whole queue in one go. */
+    fun saveTicks() {
+        synchronized(lock) {
+            if (pending.values.none { it.held }) return
+            pending.replaceAll { _, p -> if (p.held) Pending(p.delete, p.row, p.at, false) else p }
+            persist()
+        }
+        retryNow()
     }
 
     private fun queueOpts(changed: List<RoutineOption>, deleted: List<String> = emptyList()) {
@@ -140,10 +165,10 @@ class RoutineRepository(
         )))
     }
 
-    fun toggle(id: String) { get(id)?.let { queue(listOf(it.copy(done = !it.done))) } }
+    fun toggle(id: String) { get(id)?.let { queue(listOf(it.copy(done = !it.done)), held = true) } }
 
     fun toggleItem(id: String, itemId: String) {
-        get(id)?.let { s -> queue(listOf(s.copy(items = s.items.map { if (it.id == itemId) it.copy(done = !it.done) else it }))) }
+        get(id)?.let { s -> queue(listOf(s.copy(items = s.items.map { if (it.id == itemId) it.copy(done = !it.done) else it })), held = true) }
     }
 
     fun addItem(id: String, label: String) {
@@ -167,12 +192,13 @@ class RoutineRepository(
         return optionsOf(kind).firstOrNull { it.label.lowercase() == k }
     }
 
-    /** Adds a choice at the end of its list; an existing one (any case) is returned as is. */
-    fun addOption(kind: String, label: String): RoutineOption? {
+    /** Adds a choice at the end of its list; an existing one (any case) is returned as is. [temporary]: gone after 7 days. */
+    fun addOption(kind: String, label: String, temporary: Boolean = false): RoutineOption? {
         val l = RoutineOps.clean(label)
         if (l.isEmpty()) return null
         find(kind, l)?.let { return it }
-        val o = RoutineOption(newId(), kind, l, (optionsOf(kind).maxOfOrNull { it.position } ?: -1.0) + 1, "")
+        val expires = if (temporary) Instant.now().plusSeconds(RoutineOption.TEMP_DAYS * 86_400).toString() else null
+        val o = RoutineOption(newId(), kind, l, (optionsOf(kind).maxOfOrNull { it.position } ?: -1.0) + 1, "", expires)
         queueOpts(listOf(o))
         return o
     }
@@ -199,6 +225,9 @@ class RoutineRepository(
         })
         return true
     }
+
+    /** Turns a temporary choice into a permanent one. */
+    fun keepOption(id: String) { synchronized(lock) { opts[id] }?.takeIf { it.expiresAt != null }?.let { queueOpts(listOf(it.copy(expiresAt = null))) } }
 
     /** Removes a choice from its list; plans that used it keep their text. */
     fun deleteOption(id: String) { if (synchronized(lock) { opts.containsKey(id) }) queueOpts(emptyList(), listOf(id)) }
@@ -231,6 +260,8 @@ class RoutineRepository(
                     optPending.forEach { (id, p) -> if (p.delete) opts.remove(id) else p.row?.let { opts[id] = it } }
                     persist()
                 }
+                // Temporary choices whose 7 days are up: delete them for good.
+                synchronized(lock) { opts.values.filter { it.expired() }.map { it.id } }.let { if (it.isNotEmpty()) queueOpts(emptyList(), it) }
                 _failure.value = null
             }
             .onFailure { _failure.value = it.message ?: "Couldn't load the routine" }
@@ -241,6 +272,8 @@ class RoutineRepository(
 
     fun kick() {
         if (job?.isActive == true) return
+        // Held ticks alone wait for Save; anything else starts a flush that sends the whole queue.
+        if (synchronized(lock) { pending.values.none { !it.held } && optPending.isEmpty() }) return
         job = scope.launch {
             delay(400)
             val backoff = longArrayOf(4_000, 12_000, 30_000, 60_000, 300_000)

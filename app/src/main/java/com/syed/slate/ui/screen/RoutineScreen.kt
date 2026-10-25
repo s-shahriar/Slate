@@ -39,6 +39,18 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.WbTwilight
 import androidx.compose.material.icons.outlined.WbTwilight
@@ -93,8 +105,6 @@ import com.syed.slate.routine.RoutineItem
 import com.syed.slate.routine.RoutineOps
 import com.syed.slate.routine.RoutineOption
 import com.syed.slate.routine.RoutineRepository
-import com.syed.slate.ui.component.DropOption
-import com.syed.slate.ui.component.SlateDropdown
 import com.syed.slate.routine.RoutineSubject
 import com.syed.slate.routine.Slot
 import com.syed.slate.ui.SlateViewModel
@@ -150,6 +160,7 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
     val repo = m.routine
     val all by repo.subjects.collectAsState()
     val pendingCount by repo.pendingCount.collectAsState()
+    val heldCount by repo.heldCount.collectAsState()
     val failure by repo.failure.collectAsState()
     val session by m.auth.session.collectAsState()
     val online by vm.online.collectAsState()
@@ -201,6 +212,18 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
             )
         },
         floatingActionButtonPosition = if (LocalLeftHand.current) FabPosition.Start else FabPosition.End,
+        // Ticks wait here until Save sends them all in one call.
+        bottomBar = {
+            if (heldCount > 0) Surface(color = p.surface, shadowElevation = 8.dp, border = BorderStroke(1.dp, p.outline)) {
+                Row(
+                    Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Ticks not saved yet", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    RtButton("Save", solid = true, icon = Icons.Filled.Save) { repo.saveTicks() }
+                }
+            }
+        },
     ) { pad ->
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
@@ -538,22 +561,17 @@ private fun SubjectSheet(
     val items = remember(initial.id) { mutableStateListOf<RoutineItem>().apply { addAll(initial.items) } }
     var confirm by remember { mutableStateOf<String?>(null) } // null | "save" | "delete"
     var newTopic by remember { mutableStateOf<String?>(null) } // null | text of a topic being added
+    var temporary by remember { mutableStateOf(false) }
     var manage by remember { mutableStateOf<String?>(null) }   // null | RoutineOption.TOPIC | TASK
     val focus = remember { FocusRequester() }
     if (newTopic != null) LaunchedEffect(Unit) { delay(150); runCatching { focus.requestFocus() } }
     val present = items.map { it.label.lowercase() }.toSet()
     fun addLabel(l: String) { val c = RoutineOps.clean(l); if (c.isNotEmpty() && c.lowercase() !in present) { items.add(RoutineItem(com.syed.slate.routine.newId(), c, false)); confirm = null } }
-    // The Topic dropdown: the saved topics, the current title when it is not one of them (an older plan), and
-    // "+ New topic…" at the foot.
     val known = topics.firstOrNull { it.label.lowercase() == RoutineOps.clean(title).lowercase() }
     val topicValue = known?.label ?: RoutineOps.clean(title)
-    val topicOptions = buildList {
-        if (topicValue.isEmpty()) add(DropOption("", "Choose a topic…"))
-        topics.forEach { add(DropOption(it.label, it.label)) }
-        if (topicValue.isNotEmpty() && known == null) add(DropOption(topicValue, "$topicValue (not in the list)"))
-        add(DropOption(NEW_TOPIC, "+ New topic…"))
+    fun saveNewTopic() {
+        repo.addOption(RoutineOption.TOPIC, newTopic.orEmpty(), temporary)?.let { title = it.label; newTopic = null; temporary = false; confirm = null }
     }
-    fun saveNewTopic() { repo.addOption(RoutineOption.TOPIC, newTopic.orEmpty())?.let { title = it.label; newTopic = null; confirm = null } }
     val dirty = RoutineOps.clean(title) != initial.title || slot != initial.slot || items.map { it.label } != initial.items.map { it.label }
     fun save() {
         if (title.isBlank()) return
@@ -580,10 +598,11 @@ private fun SubjectSheet(
                 }
                 Text("TOPIC", style = MaterialTheme.typography.labelSmall, color = p.text3, fontWeight = FontWeight.ExtraBold)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SlateDropdown(
-                        topicOptions, if (newTopic != null) NEW_TOPIC else topicValue,
-                        { v -> if (v == NEW_TOPIC) newTopic = "" else { title = v; newTopic = null; confirm = null } },
-                        Modifier.weight(1f),
+                    TopicPicker(
+                        topicValue, known != null, topics,
+                        onPick = { v -> title = v; newTopic = null; confirm = null },
+                        onNew = { q -> newTopic = q },
+                        modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { manage = RoutineOption.TOPIC }) { Icon(Icons.Filled.Tune, "Edit the topic list", tint = p.text2) }
                 }
@@ -596,7 +615,14 @@ private fun SubjectSheet(
                             keyboardActions = KeyboardActions(onDone = { saveNewTopic() }),
                         )
                         RtButton("Add", solid = true, enabled = nt.isNotBlank()) { saveNewTopic() }
-                        IconButton(onClick = { newTopic = null }, Modifier.size(40.dp)) { Icon(Icons.Filled.Close, "Cancel", tint = p.text2) }
+                        IconButton(onClick = { newTopic = null; temporary = false }, Modifier.size(40.dp)) { Icon(Icons.Filled.Close, "Cancel", tint = p.text2) }
+                    }
+                    Row(Modifier.clip(RoundedCornerShape(10.dp)).clickable { temporary = !temporary }.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(temporary, { temporary = it }, colors = CheckboxDefaults.colors(checkedColor = p.primary))
+                        Column {
+                            Text("Temporary — removes itself after 7 days", style = MaterialTheme.typography.bodyMedium, color = p.text2)
+                            Text("e.g. “Revising maths”", style = MaterialTheme.typography.labelSmall, color = p.text3)
+                        }
                     }
                 }
                 Slot.entries.chunked(2).forEach { row ->
@@ -681,7 +707,82 @@ private fun SubjectSheet(
 }
 
 
-private const val NEW_TOPIC = "\u0000new"
+/** "5 days left" on a temporary topic. */
+@Composable
+private fun TempTag(o: RoutineOption) {
+    val d = o.daysLeft() ?: return
+    val p = LocalPalette.current
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(p.warn.copy(alpha = .14f)).padding(horizontal = 7.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Schedule, null, Modifier.size(11.dp), tint = p.warn)
+        Spacer(Modifier.width(3.dp))
+        Text(if (d == 0) "last day" else "$d day${if (d == 1) "" else "s"} left", style = MaterialTheme.typography.labelSmall, color = p.warn, fontWeight = FontWeight.Bold)
+    }
+}
+
+/**
+ * The Topic picker: a field naming the topic, opening a menu with a search box at the top. Typing filters the list;
+ * "New topic" at the foot starts the add row in the sheet, carrying what was typed.
+ */
+@Composable
+private fun TopicPicker(
+    value: String, known: Boolean, topics: List<RoutineOption>, onPick: (String) -> Unit, onNew: (String) -> Unit, modifier: Modifier = Modifier,
+) {
+    val p = LocalPalette.current
+    var open by remember { mutableStateOf(false) }
+    var q by remember { mutableStateOf("") }
+    var width by remember { mutableStateOf(0) }
+    Box(modifier.onSizeChanged { width = it.width }) {
+        Surface(
+            onClick = { q = ""; open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
+            shape = RoundedCornerShape(14.dp), color = p.surface, border = BorderStroke(1.dp, p.outline),
+        ) {
+            Row(Modifier.padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    when { value.isEmpty() -> "Choose a topic…"; known -> value; else -> "$value (not in the list)" }, Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.Bold,
+                    color = if (value.isEmpty()) p.text3 else p.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                Icon(Icons.Filled.ExpandMore, "Choose", tint = p.text3)
+            }
+        }
+        DropdownMenu(
+            expanded = open, onDismissRequest = { open = false },
+            modifier = Modifier.widthIn(min = with(LocalDensity.current) { width.toDp() }).heightIn(max = 440.dp).background(p.surface),
+        ) {
+            OutlinedTextField(
+                q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), placeholder = { Text("Search topics…") },
+                leadingIcon = { Icon(Icons.Filled.Search, null, tint = p.text3) }, singleLine = true, shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+            )
+            val needle = q.trim()
+            val shown = topics.filter { needle.isEmpty() || it.label.contains(needle, ignoreCase = true) }
+            val exact = topics.any { it.label.equals(needle, ignoreCase = true) }
+            if (shown.isEmpty()) Text("No topic matches “$needle”.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodySmall, color = p.text3)
+            shown.forEach { t ->
+                val on = t.label == value
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(t.label, Modifier.weight(1f, fill = false), fontWeight = if (on) FontWeight.Bold else FontWeight.Normal, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            TempTag(t)
+                        }
+                    },
+                    trailingIcon = { if (on) Icon(Icons.Filled.Check, null, tint = p.primary) else Spacer(Modifier.size(24.dp)) },
+                    onClick = { open = false; onPick(t.label) },
+                )
+            }
+            HorizontalDivider(color = p.outline)
+            DropdownMenuItem(
+                text = { Text(if (needle.isNotEmpty() && !exact) "New topic “$needle”" else "New topic…", color = p.primary, fontWeight = FontWeight.Bold) },
+                leadingIcon = { Icon(Icons.Filled.Add, null, tint = p.primary) },
+                onClick = { open = false; onNew(if (exact) "" else needle) },
+            )
+        }
+    }
+}
 
 /** The saved Topic / Task list, edited inside the sheet: rename (plans that use the old name follow), reorder, delete (plans keep their text), add. */
 @Composable
@@ -703,7 +804,11 @@ private fun OptionManager(kind: String, list: List<RoutineOption>, repo: Routine
     }
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(if (kind == RoutineOption.TOPIC) "Topics" else "Tasks", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-        Text("Renaming also renames it in plans that use it. Deleting only removes it from this list.", style = MaterialTheme.typography.bodySmall, color = p.text3)
+        Text(
+            "Renaming also renames it in plans that use it. Deleting only removes it from this list." +
+                if (kind == RoutineOption.TOPIC) " A temporary topic removes itself after 7 days — Keep makes it permanent." else "",
+            style = MaterialTheme.typography.bodySmall, color = p.text3,
+        )
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).border(1.dp, p.outline, RoundedCornerShape(14.dp))) {
             if (list.isEmpty()) Text("Nothing yet — add one below.", Modifier.padding(14.dp), style = MaterialTheme.typography.bodySmall, color = p.text3)
             list.forEachIndexed { i, o ->
@@ -731,10 +836,17 @@ private fun OptionManager(kind: String, list: List<RoutineOption>, repo: Routine
                             RtButton("Delete", danger = true) { repo.deleteOption(o.id); deleting = null }
                         }
                         else -> {
-                            Text(
-                                o.label, Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { editing = o.id to o.label; deleting = null; error = null }
+                            Row(
+                                Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable { editing = o.id to o.label; deleting = null; error = null }
                                     .padding(horizontal = 8.dp, vertical = 10.dp),
-                                style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(o.label, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                TempTag(o)
+                            }
+                            if (o.expiresAt != null) Text(
+                                "Keep", Modifier.clip(RoundedCornerShape(8.dp)).clickable { repo.keepOption(o.id) }.padding(horizontal = 6.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelLarge, color = p.primary, fontWeight = FontWeight.Bold,
                             )
                             IconButton(onClick = { editing = o.id to o.label; deleting = null; error = null }, Modifier.size(40.dp)) { Icon(Icons.Filled.Edit, "Rename ${o.label}", Modifier.size(18.dp), tint = p.text2) }
                             IconButton(onClick = { repo.moveOption(o.id, -1) }, Modifier.size(40.dp), enabled = i > 0) { Icon(Icons.Filled.ArrowUpward, "Move up", Modifier.size(18.dp)) }

@@ -49,17 +49,28 @@ data class RoutineSubject(
 
 /**
  * One choice of the add/edit sheet's pick lists (`routine_options`, shared with the web): a topic for the Topic
- * dropdown or a task for the task chips. [position] orders each list.
+ * dropdown or a task for the task chips. [position] orders each list. A temporary topic carries [expiresAt] (7 days
+ * out); past it, it drops off the list and is deleted on the next load.
  */
-data class RoutineOption(val id: String, val kind: String, val label: String, val position: Double, val updatedAt: String) {
+data class RoutineOption(
+    val id: String, val kind: String, val label: String, val position: Double, val updatedAt: String, val expiresAt: String? = null,
+) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("kind", kind).put("label", label).put("position", position).put("updated_at", updatedAt)
+        .put("expires_at", expiresAt ?: JSONObject.NULL)
+
+    private fun expiresMs(): Long? = expiresAt?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
+    fun expired(now: Long = System.currentTimeMillis()) = expiresMs()?.let { it <= now } ?: false
+    /** Whole days left (0 on the last day); null when permanent. */
+    fun daysLeft(now: Long = System.currentTimeMillis()): Int? = expiresMs()?.let { maxOf(0L, (it - now) / 86_400_000L).toInt() }
 
     companion object {
         const val TOPIC = "topic"
         const val TASK = "task"
+        const val TEMP_DAYS = 7L
         fun fromJson(o: JSONObject) = RoutineOption(
             o.getString("id"), o.optString("kind"), o.optString("label"), o.optDouble("position", 0.0), o.optString("updated_at"),
+            if (o.isNull("expires_at")) null else o.optString("expires_at").ifEmpty { null },
         )
     }
 }
