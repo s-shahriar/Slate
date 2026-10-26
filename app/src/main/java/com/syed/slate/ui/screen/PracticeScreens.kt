@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -101,7 +103,9 @@ fun PracticeScreen(vm: SlateViewModel, categoryId: String, onBack: () -> Unit) {
             )
         },
     ) { pad ->
-        Column(Modifier.fillMaxSize().padding(pad)) {
+        // Edge-to-edge: the Scaffold padding has no keyboard inset, so without imePadding the answer field sits under the
+        // keyboard. With it the scroll area shrinks and keeps the focused field in view.
+        Column(Modifier.fillMaxSize().padding(pad).consumeWindowInsets(pad).imePadding()) {
             TopicDropdown(cat, topic, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) { topicId = it; tab = 0 }
             PracticeTabs(tab) { tab = it }
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

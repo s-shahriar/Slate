@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.syed.slate.ModuleServices
+import com.syed.slate.content.ContentState
 import com.syed.slate.content.Item
 import com.syed.slate.ui.theme.LocalPalette
 import kotlinx.coroutines.launch
@@ -64,8 +65,17 @@ private fun CategorySheet(m: ModuleServices, item: Item, onDismiss: () -> Unit) 
     var target by remember { mutableStateOf(item.topic) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // Only the categories of the card's own section, as its topic list shows them: Written topics for a Written card,
+    // MCQ topics (`mcq = true`, even when empty) for an MCQ. The current one always stays listed.
+    val ownTopics = (m.content.state.value as? ContentState.Ready)?.content?.groups
+        ?.firstOrNull { it.key == item.group }?.topics?.map { it.slug }?.toSet().orEmpty()
     LaunchedEffect(Unit) {
-        runCatching { m.db.selectAll("categories", "select=slug,name&order=sort_order,slug").map { it.getString("slug") to it.getString("name") } }
+        runCatching {
+            m.db.selectAll("categories", "select=slug,name,mcq&order=sort_order,slug").filter {
+                val slug = it.getString("slug")
+                slug == item.topic || slug in ownTopics || (item.group == "mcq" && it.optBoolean("mcq"))
+            }.map { it.getString("slug") to it.getString("name") }
+        }
             .onSuccess { cats = it }.onFailure { error = "Couldn't load the categories (needs a connection)." }
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = p.surface) {

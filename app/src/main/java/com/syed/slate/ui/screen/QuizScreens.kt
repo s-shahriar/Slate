@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.syed.slate.backend.ModuleId
 import com.syed.slate.content.ContentState
+import com.syed.slate.content.LongForm
 import com.syed.slate.content.PoolSet
 import com.syed.slate.content.QuizDecks
 import com.syed.slate.content.QuizPool
@@ -107,16 +108,20 @@ fun ExamConfigScreen(vm: SlateViewModel, id: ModuleId, initialGroup: String?, on
     val flags by m.progress.flags.collectAsState()
     val p = LocalPalette.current
     val content = (state as? ContentState.Ready)?.content
-    var groupKey by rememberSaveable { mutableStateOf(initialGroup ?: content?.groups?.firstOrNull()?.key ?: "") }
+    // Exams are MCQ only: Written / Extra / Viva (long-form, no options) never appear here, as on the web.
+    val groups = content?.groups.orEmpty().filter { !LongForm.isLongForm(it.key) }
+    // Random Mix only means something when there is more than one group to mix (General, not ICT).
+    val canMix = groups.size > 1
+    var groupKey by rememberSaveable { mutableStateOf(initialGroup?.takeIf { g -> groups.any { it.key == g } } ?: groups.firstOrNull()?.key ?: "") }
     var choice by rememberSaveable { mutableStateOf("all") } // all | important | weak | topic:<slug>
     var count by rememberSaveable { mutableIntStateOf(10) }
     // "mix" pools every group at once — the web's "All Topics (Random Mix)".
-    val isMix = groupKey == "mix"
-    val group = if (isMix) null else content?.groups?.firstOrNull { it.key == groupKey } ?: content?.groups?.firstOrNull()
+    val isMix = groupKey == "mix" && canMix
+    val group = if (isMix) null else groups.firstOrNull { it.key == groupKey } ?: groups.firstOrNull()
 
     // Important / Weak are scoped to the chosen pool: the group, or everything in mix mode.
     val scopeItems = remember(content, group, isMix) {
-        if (isMix) content!!.allItems().filter { it.isQuizzable }.toList()
+        if (isMix) content!!.allItems().filter { it.isQuizzable && !LongForm.isLongForm(it) }.toList()
         else group?.topics.orEmpty().flatMap { content!!.items(group!!.key, it.slug) }
     }
     val set = when {
@@ -150,9 +155,9 @@ fun ExamConfigScreen(vm: SlateViewModel, id: ModuleId, initialGroup: String?, on
                 Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Dropdown(
+                if (groups.size > 1) Dropdown(
                     "Subject group",
-                    listOf("mix" to "Random Mix · every group") + content.groups.map { it.key to "${it.title} · ${it.count}" },
+                    listOf("mix" to "Random Mix · every group") + groups.map { it.key to "${it.title} · ${it.count}" },
                     groupKey,
                 ) { groupKey = it; choice = "all" }
                 Dropdown(
