@@ -114,7 +114,7 @@ async function math() {
 async function equations() {
   const entry = `
     import { renderToStaticMarkup } from 'react-dom/server'
-    import { CoverProvider, EqRow, Mem, Symbols } from '${IQ}/src/components/equation/EquationHelpers.jsx'
+    import { CompareTable, CoverProvider, EqRow, Mem, Symbols } from '${IQ}/src/components/equation/EquationHelpers.jsx'
     import { DIAGRAMS } from '${IQ}/src/components/equation/diagrams/index.js'
     import cn from '${IQ}/src/data/equation/computer_network.js'
     import os from '${IQ}/src/data/equation/operating_system.js'
@@ -135,6 +135,7 @@ async function equations() {
             {Diagram && (<figure className="eq-diagram"><div className="eq-diagram-scroll"><Diagram /></div>
               {g.caption && <figcaption data-hl-block="caption">{g.caption}</figcaption>}</figure>)}
             {g.symbols?.length > 0 && <Symbols items={g.symbols} hl={hl} />}
+            {g.table && <CompareTable table={g.table} hl={hl} />}
             <div className="eq-list">{g.equations.map(eq => <EqRow key={eq.name} eq={eq} hl={hl} />)}</div>
             {g.mnemonic && <Mem><span data-hl-block="mnemonic">{g.mnemonic}</span></Mem>}
           </div>
