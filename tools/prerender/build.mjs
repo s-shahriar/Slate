@@ -114,7 +114,7 @@ async function math() {
 async function equations() {
   const entry = `
     import { renderToStaticMarkup } from 'react-dom/server'
-    import { CompareTable, CoverProvider, EqRow, Mem, Symbols } from '${IQ}/src/components/equation/EquationHelpers.jsx'
+    import { CompareTable, CoverProvider, EqRow, IMP_CSS, ImpStar, Mem, Symbols } from '${IQ}/src/components/equation/EquationHelpers.jsx'
     import { DIAGRAMS } from '${IQ}/src/components/equation/diagrams/index.js'
     import cn from '${IQ}/src/data/equation/computer_network.js'
     import os from '${IQ}/src/data/equation/operating_system.js'
@@ -126,10 +126,11 @@ async function equations() {
     function Group({ g, i, topic }) {
       const Diagram = DIAGRAMS[g.diagram]
       return (
-        <section className="eq-group" id={'eq-' + g.id}>
+        <section className="eq-group" id={'eq-' + g.id} data-uid={uidFor('equation', topic + '/' + g.id)}>
           <header className="eq-group-head">
             <span className="eq-group-num">{i + 1}</span>
             <div><h2 className="eq-group-title">{g.title}</h2>{g.sub && <p className="eq-group-sub">{g.sub}</p>}</div>
+            <ImpStar on={false} />
           </header>
           <div className="eq-card" data-hl-root={uidFor('equation', topic + '/' + g.id)}>
             {Diagram && (<figure className="eq-diagram"><div className="eq-diagram-scroll"><Diagram /></div>
@@ -144,7 +145,7 @@ async function equations() {
     }
     export const out = Object.fromEntries(Object.entries(topics).map(([id, data]) => [id, {
       groups: data.groups.map(g => ({ id: g.id, title: g.title, equations: g.equations.length })),
-      html: renderToStaticMarkup(<CoverProvider value={true}>{data.groups.map((g, i) => <Group key={g.id} g={g} i={i} topic={id} />)}</CoverProvider>),
+      html: '<style>' + IMP_CSS + '</style>' + renderToStaticMarkup(<CoverProvider value={true}>{data.groups.map((g, i) => <Group key={g.id} g={g} i={i} topic={id} />)}</CoverProvider>),
     }]))
   `
   const mod = await run(entry, IQ, [

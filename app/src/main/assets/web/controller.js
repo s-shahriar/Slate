@@ -45,11 +45,12 @@
   window.setImportant = function (uids) {
     var set = {};
     for (var i = 0; i < uids.length; i++) set[uids[i]] = 1;
-    var cards = document.querySelectorAll('.mf-card[data-uid]');
+    // Math: a star on each card. Equations: a star in each group's header.
+    var cards = document.querySelectorAll('.mf-card[data-uid], .eq-group[data-uid]');
     for (var j = 0; j < cards.length; j++) {
       var c = cards[j], on = !!set[c.getAttribute('data-uid')];
       c.classList.toggle('is-important', on);
-      var b = c.querySelector(':scope > .mf-imp-btn');
+      var b = c.querySelector(':scope > .mf-imp-btn, :scope > .eq-group-head > .eq-imp-btn');
       if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
     }
   };
@@ -57,6 +58,8 @@
   window.setImportantOnly = function (on) {
     var r = document.querySelector('.mf-root');
     if (r) r.classList.toggle('mf-important-only', !!on);
+    var e = document.querySelector('.eq-page');
+    if (e) e.classList.toggle('eq-important-only', !!on);
   };
 
   window.scrollToId = function (id) {
@@ -67,9 +70,9 @@
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
-    var star = t.closest('.mf-imp-btn');
+    var star = t.closest('.mf-imp-btn, .eq-imp-btn');
     if (star) {
-      var card = star.closest('.mf-card');
+      var card = star.closest('.mf-card, .eq-group');
       var uid = card && card.getAttribute('data-uid');
       if (uid && window.Slate) window.Slate.toggleImportant(uid);
       e.preventDefault();

@@ -181,7 +181,7 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
 @Composable
 private fun LocalContentColorFallback(): Color = androidx.compose.material3.LocalContentColor.current
 
-/** ICT » Equation: formula sheets for one topic, each group a diagram plus its equations, with cover-and-recall. */
+/** ICT » Equation: formula sheets for one topic, each group a diagram plus its equations, with cover-and-recall and per-group Important stars. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquationScreen(vm: SlateViewModel, topicId: String, onBack: () -> Unit) {
@@ -195,7 +195,13 @@ fun EquationScreen(vm: SlateViewModel, topicId: String, onBack: () -> Unit) {
 @Composable
 private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: String, onBack: () -> Unit) {
     val p = LocalPalette.current
+    val m = vm.module(ModuleId.ICT)
+    val flags by m.progress.flags.collectAsState()
     var cover by remember { mutableStateOf(vm.boolPref("ict-eq-cover")) }
+    var importantOnly by remember { mutableStateOf(false) }
+    // Each group carries its uid (uidFor('equation', '<topic>/<group id>'), the same key the web stars).
+    val groupUids = remember(html) { Regex("data-uid=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toSet() }
+    val important = remember(flags, groupUids) { flags.filter { it.key in groupUids && it.value.important }.keys }
     var active by remember { mutableStateOf("eq-${topic.groups.first().id}") }
     var target by remember { mutableStateOf<String?>(null) }
     var nonce by remember { mutableIntStateOf(0) }
@@ -210,13 +216,16 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
                     IconButton(onClick = { cover = !cover; vm.setBoolPref("ict-eq-cover", cover) }) {
                         Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, if (cover) "Show equations" else "Cover equations")
                     }
+                    IconButton(onClick = { importantOnly = !importantOnly }) {
+                        Icon(if (importantOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, "Important only", tint = if (importantOnly) p.imp else LocalContentColorFallback())
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            if (topic.groups.size > 1) SlateDropdown(
+            if (!importantOnly && topic.groups.size > 1) SlateDropdown(
                 topic.groups.map { g -> DropOption("eq-${g.id}", g.title) },
                 active, { target = it; active = it; nonce++ },
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -227,16 +236,24 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
             val onPage = remember(saved) { saved.filterKeys { it.startsWith("equation:") } }
             val owner = remember { Any() }
             var clearNonce by remember { mutableIntStateOf(0) }
-            FormulaPage(
-                PageKind.EQUATION, html, p, p.isDark, cover,
-                scrollTo = target, scrollNonce = nonce, onSection = { active = it },
-                highlights = onPage, clearSelectionNonce = clearNonce,
-                onSelection = { uid, anchors ->
-                    ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
-                    else com.syed.slate.ui.highlight.HlTarget.Add(owner, uid, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
-                },
-                onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
-            )
+            Box(Modifier.fillMaxSize()) {
+                FormulaPage(
+                    PageKind.EQUATION, html, p, p.isDark, cover,
+                    importantOnly = importantOnly, important = important,
+                    onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
+                    scrollTo = target, scrollNonce = nonce, onSection = { active = it },
+                    highlights = onPage, clearSelectionNonce = clearNonce,
+                    onSelection = { uid, anchors ->
+                        ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
+                        else com.syed.slate.ui.highlight.HlTarget.Add(owner, uid, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
+                    },
+                    onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
+                )
+                if (importantOnly && important.isEmpty()) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("এই topic-এ এখনো কোনো group Important হিসেবে সেভ করা হয়নি।", style = MaterialTheme.typography.titleMedium)
+                    Text("যেকোনো group-এর শিরোনামের ডান পাশে ⭐ বাটনে ক্লিক করে Important করুন।", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = p.text3)
+                }
+            }
         }
     }
 }
