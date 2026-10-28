@@ -162,12 +162,24 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
             if (cover) CoverBanner()
+            // Highlights: each card is a root (its "m" uid), blocks tagged by the web's own code (lib/mathHighlight.js).
+            val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
+            val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
+            val onPage = remember(saved) { saved.filterKeys { it.startsWith("m") } }
+            val owner = remember { Any() }
+            var clearNonce by remember { mutableIntStateOf(0) }
             Box(Modifier.fillMaxSize()) {
                 FormulaPage(
                     PageKind.MATH, page.getString("html"), p, p.isDark, cover,
                     importantOnly = importantOnly, important = important, scrollTo = target, scrollNonce = nonce,
                     onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
                     onSection = { active = it },
+                    highlights = onPage, clearSelectionNonce = clearNonce,
+                    onSelection = { uid, anchors ->
+                        ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
+                        else com.syed.slate.ui.highlight.HlTarget.Add(owner, uid, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
+                    },
+                    onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
                 )
                 if (importantOnly && important.isEmpty()) Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("এখনো কোনো কার্ড Important হিসেবে সেভ করা হয়নি।", style = MaterialTheme.typography.titleMedium)

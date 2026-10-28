@@ -242,6 +242,8 @@ function applyRanges(root, ranges) {
 var all = {};            // uid -> [highlight]
 var settleTimer = null;
 
+function isFormula(block) { return /\.formula$/.test(block) || /^f:/.test(block); }
+
 function roots() { return document.querySelectorAll('[data-hl-root]'); }
 
 function paint() {
@@ -252,11 +254,13 @@ function paint() {
       var block = el.getAttribute('data-hl-block');
       var mine = list.filter(function (h) { return h.block === block; });
       // A formula is KaTeX markup, so character offsets mean nothing inside it: any mark covers the whole formula.
-      if (/\.formula$/.test(block)) {
-        el.classList.remove('hl-mark', 'hl-c-mint', 'hl-c-amber', 'hl-c-rose', 'hl-c-violet', 'hl-whole');
+      // Equation pages key them `….formula`; the math page `f:<hash>` (its formula block may be a div, which keeps its
+      // layout: mf-hl-formula, not the inline-block hl-whole).
+      if (isFormula(block)) {
+        el.classList.remove('hl-mark', 'hl-c-mint', 'hl-c-amber', 'hl-c-rose', 'hl-c-violet', 'hl-whole', 'mf-hl-formula');
         el.removeAttribute('data-hl-ids'); el.removeAttribute('data-hl-color');
         if (mine.length) {
-          el.classList.add('hl-mark', 'hl-whole', 'hl-c-' + mine[0].color);
+          el.classList.add('hl-mark', /^f:/.test(block) ? 'mf-hl-formula' : 'hl-whole', 'hl-c-' + mine[0].color);
           el.setAttribute('data-hl-ids', mine.map(function (h) { return h.id; }).join(','));
           el.setAttribute('data-hl-color', mine[0].color);
         }
@@ -277,7 +281,7 @@ function report() {
   var root = node && node.closest && node.closest('[data-hl-root]');
   if (!root) { Slate.onSelection(''); return; }
   var anchors = selectionToAnchors(sel).map(function (a) {
-    if (/\.formula$/.test(a.block)) {                    // a formula is marked whole
+    if (isFormula(a.block)) {                            // a formula is marked whole
       var el = root.querySelector('[data-hl-block="' + a.block.replace(/"/g, '\\"') + '"]');
       var t = el ? el.textContent : a.quote;
       return { block: a.block, start: 0, end: t.length, quote: t };

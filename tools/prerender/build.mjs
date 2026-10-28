@@ -97,17 +97,26 @@ async function math() {
     [/ImportantContext\.jsx$/, `export const useImportantContext = () => ({ value: new Set(), add() {}, remove() {}, toggle() {} })`],
   ])
   // The web derives each card's identity in the browser (section id + card title -> hash); do the same, with the same code.
+  // Highlights: each card is a root (the same uid) and its blocks are tagged by the web's own code, so a mark made on
+  // either side lands on the same block key.
   const qid = fs.readFileSync(`${GQ}/src/lib/qid.js`, 'utf8').replace(/export /g, '')
-  const body = inChrome(mod.html, `${qid}
+  const mhl = fs.readFileSync(`${GQ}/src/lib/mathHighlight.js`, 'utf8').replace(/export /g, '')
+  const body = inChrome(mod.html, `${qid}\n${mhl}
     document.querySelectorAll('.mf-card').forEach(function (card) {
       if (!card.querySelector(':scope > .mf-imp-btn')) return;
       var sectionId = (card.closest('.mf-section') || {}).id || '';
       var t = card.querySelector('.mf-card-title');
-      card.setAttribute('data-uid', mathUidOfText(sectionId + '::' + ((t && t.textContent) || card.textContent || '')));
-    });`)
+      var uid = mathUidOfText(sectionId + '::' + ((t && t.textContent) || card.textContent || ''));
+      card.setAttribute('data-uid', uid);
+      card.setAttribute('data-hl-root', uid);
+      tagMathBlocks(card, mathUidOfText);
+    });
+    tagMathExtras(document.getElementById('root'), mathUidOfText);`)
   rows.general.push({ kind: 'web', key: 'math', sort_order: 0, payload: { sections: mod.sections, html: body } })
   const cards = (body.match(/data-uid="/g) || []).length
-  console.log(`math: ${mod.sections.length} sections, ${cards} markable cards, ${(body.length / 1024).toFixed(0)} KB`)
+  const extras = (body.match(/data-hl-root="/g) || []).length - cards
+  const blocks = (body.match(/data-hl-block="/g) || []).length
+  console.log(`math: ${mod.sections.length} sections, ${cards} markable cards + ${extras} other highlight roots, ${blocks} highlight blocks, ${(body.length / 1024).toFixed(0)} KB`)
 }
 
 // ── Equations (ict-quiz) ─────────────────────────────────────────────────────
