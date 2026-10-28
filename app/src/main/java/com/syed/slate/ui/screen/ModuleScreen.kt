@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Code
@@ -249,6 +250,11 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
     val blobVer by app.module(ModuleId.ICT).blobs.version.collectAsState()
     val equationTopics = remember(blobVer) { FormulaIndex.equationTopics(app.module(ModuleId.ICT).blobs).map { it.first } }
     val sqlTopics = remember(blobVer) { SqlLabIndex.topics(app.module(ModuleId.ICT).blobs) }
+    // SQL Lab Important: the web's flag on uidFor('sql', '<topic> / <lesson id>'), the uid its note and preferred version use.
+    val sqlImportant = remember(sqlTopics, flags) {
+        sqlTopics.flatMap { t -> t.lessons.mapNotNull { l -> com.syed.slate.core.Uid.ict("sql", "${t.id} / ${l.id}")?.takeIf { flags[it]?.important == true }?.let { l.id } } }.toSet()
+    }
+    var sqlImportantOnly by remember { mutableStateOf(false) }
     val practiceCats = remember(blobVer) { app.practice }
     val practiceFlags = remember(flags) { flags.filter { it.key.startsWith("practice__") } }
     val group = content.groups.firstOrNull { it.key == section }
@@ -329,12 +335,29 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
         } else if (inSql) {
             // The web's lesson rail: each section's "how it runs" intro (book icon, no number), then its numbered queries.
+            item(key = "sql-imp-only") {
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                        .background(if (sqlImportantOnly) p.imp.copy(alpha = .12f) else p.surface)
+                        .clickable { sqlImportantOnly = !sqlImportantOnly }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(if (sqlImportantOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, null, Modifier.size(20.dp), tint = p.imp)
+                    Text(if (sqlImportantOnly) "শুধু Important দেখাচ্ছে" else "শুধু Important", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                    Text("${sqlImportant.size}", style = MaterialTheme.typography.labelLarge, color = p.imp)
+                }
+            }
+            if (sqlImportantOnly && sqlImportant.isEmpty()) item(key = "sql-imp-empty") {
+                Text("এখনো কোনো lesson Important করা হয়নি — lesson খুলে উপরের 🔖 চাপো।", Modifier.padding(8.dp), style = MaterialTheme.typography.bodyMedium, color = p.text3)
+            }
             sqlTopics.forEach { t ->
                 t.sections.forEach { sec ->
+                    val shown = t.lessons.filter { it.section == sec.id && (!sqlImportantOnly || it.id in sqlImportant) }
+                    if (shown.isEmpty()) return@forEach
                     item(key = "sql-${t.id}-${sec.id}") {
                         Text(sec.title, Modifier.padding(top = 8.dp, start = 4.dp), style = MaterialTheme.typography.labelLarge, color = sqlLevelColor(sec.level))
                     }
-                    items(t.lessons.filter { it.section == sec.id }, key = { "sql-${t.id}-${it.id}" }) { l ->
+                    items(shown, key = { "sql-${t.id}-${it.id}" }) { l ->
                         Row(
                             Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onSql(l.id) }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -346,6 +369,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                                 Text(l.title, style = MaterialTheme.typography.titleMedium, color = if (l.intro) p.text2 else MaterialTheme.colorScheme.onSurface)
                                 Text(if (l.versions > 1) "${l.concept} · ${l.versions} versions" else l.concept, style = MaterialTheme.typography.labelMedium, color = p.text3)
                             }
+                            if (l.id in sqlImportant) Icon(Icons.Filled.Bookmark, "Important", Modifier.size(18.dp), tint = p.imp)
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
                         }
                     }

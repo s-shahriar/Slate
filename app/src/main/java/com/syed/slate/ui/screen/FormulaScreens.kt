@@ -305,6 +305,7 @@ fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, on
     val flags by progress.flags.collectAsState()
     val uid = remember(topic.id, lesson.id) { com.syed.slate.core.Uid.ict("sql", "${topic.id} / ${lesson.id}") }
     val preferred = uid?.let { flags[it]?.preferred }?.takeIf { it < lesson.versions }
+    val important = uid?.let { flags[it]?.important } == true
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -312,6 +313,9 @@ fun SqlLessonScreen(vm: SlateViewModel, lessonId: String, onBack: () -> Unit, on
                 title = { BarTitle(if (lesson.intro) "কীভাবে চলে" else "Query %02d / %d".format(lesson.n, topic.queries), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
+                    IconButton(onClick = { if (uid != null) progress.update(uid, FlagRules::toggleImportant) }, enabled = uid != null) {
+                        Icon(if (important) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, if (important) "Important — remove" else "Mark Important", tint = if (important) p.imp else LocalContentColorFallback())
+                    }
                     IconButton(onClick = { onOpen(topic.lessons[i - 1].id) }, enabled = i > 0) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Previous lesson") }
                     IconButton(onClick = { onOpen(topic.lessons[i + 1].id) }, enabled = i < topic.lessons.size - 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next lesson") }
                 },
