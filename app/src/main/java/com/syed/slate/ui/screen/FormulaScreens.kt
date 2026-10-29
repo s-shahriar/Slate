@@ -100,17 +100,6 @@ private fun NotDownloaded(title: String, onBack: () -> Unit) {
     }
 }
 
-@Composable
-private fun CoverBanner() {
-    val p = LocalPalette.current
-    Row(
-        Modifier.fillMaxWidth().background(p.imp.copy(alpha = .10f)).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(Icons.Filled.VisibilityOff, null, tint = p.imp)
-        Text("সূত্র ঢাকা আছে — মনে করার চেষ্টা করে, তারপর ট্যাপ করে মিলিয়ে নিন।", style = MaterialTheme.typography.labelMedium)
-    }
-}
 
 /** General » Utility » গণিত সূত্র সংকলন: 19 sections of formulas, with cover-and-recall and per-card Important stars. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,7 +151,6 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
                 active, { target = it; active = it; nonce++ },
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            if (cover) CoverBanner()
             // Highlights: each card is a root (its "m" uid), blocks tagged by the web's own code (lib/mathHighlight.js).
             val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
             val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
@@ -243,7 +231,6 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
                 active, { target = it; active = it; nonce++ },
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            if (cover) CoverBanner()
             val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
             val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
             val onPage = remember(saved) { saved.filterKeys { it.startsWith("equation:") } }
@@ -324,7 +311,6 @@ fun EquationImportantScreen(vm: SlateViewModel, onBack: () -> Unit) {
                 topic.id, { picked = it },
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            if (cover) CoverBanner()
             val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
             val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
             val onPage = remember(saved) { saved.filterKeys { it.startsWith("equation:") } }

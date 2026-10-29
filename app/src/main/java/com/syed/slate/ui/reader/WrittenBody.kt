@@ -27,6 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -94,15 +97,66 @@ internal fun codeAnnotated(code: String, lang: String?, colors: CodeColors): and
  * `headerCode`): the token colours are the `base` of an [HText], so saved offsets count the code text exactly.
  */
 @Composable
-fun CodeBlock(code: String, lang: String?, modifier: Modifier = Modifier, uid: String? = null, block: String? = null) {
+fun CodeBlock(code: String, lang: String?, modifier: Modifier = Modifier, uid: String? = null, block: String? = null, hiddenSteps: List<IntRange> = emptyList()) {
     val dark = LocalPalette.current.bg.luminance() < .5f
     val colors = if (dark) darkCode else lightCode
     val shown = code.trimEnd()
-    val text = remember(code, lang, dark) { codeAnnotated(shown, lang ?: "c", colors) }
+    val plain = remember(code, lang, dark) { codeAnnotated(shown, lang ?: "c", colors) }
+    // Eye mode: each still-hidden step drawn as a blur (transparent glyphs under a soft shadow), offsets unchanged.
+    val text = remember(plain, hiddenSteps) {
+        if (hiddenSteps.isEmpty()) plain else buildAnnotatedString {
+            append(plain)
+            val blur = SpanStyle(color = androidx.compose.ui.graphics.Color.Transparent, shadow = androidx.compose.ui.graphics.Shadow(colors.text.copy(alpha = .8f), blurRadius = 16f))
+            for (r in hiddenSteps) if (r.first < shown.length) addStyle(blur, r.first, minOf(r.last + 1, shown.length))
+        }
+    }
     val style = MaterialTheme.typography.bodyMedium.copy(fontFamily = Mono, fontSize = 12.5.sp, lineHeight = 18.sp)
     Box(modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).background(colors.bg).horizontalScroll(rememberScrollState()).padding(12.dp)) {
         if (uid != null && block != null) HText(uid, block, shown, base = text, color = colors.text, style = style, softWrap = false, raw = code, markLift = colors.comment to colors.text)
         else Text(text, color = colors.text, style = style, softWrap = false)
+    }
+}
+
+/**
+ * A Written answer's code with its label and the eye mode (as the web's CoverableCode): with [CodeCover] on, every logical
+ * step is blurred and "পরের ধাপ" opens them one by one, so the logic can be recalled step by step. The eye in the label
+ * row flips the one setting for every code block.
+ */
+@Composable
+fun CoverableCode(label: String, code: String, lang: String?, uid: String?, block: String) {
+    val p = LocalPalette.current
+    val ctx = LocalContext.current
+    remember { CodeCover.init(ctx) }
+    val steps = remember(code) { CodeCover.steps(code.trimEnd()) }
+    val active = CodeCover.on && steps.isNotEmpty()
+    // Start hidden again on every switch into eye mode, and for new code.
+    var open by remember(code, CodeCover.on) { mutableStateOf(emptySet<Int>()) }
+    val next = steps.indices.firstOrNull { it !in open }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            BlockLabel(label)
+            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            androidx.compose.material3.IconButton(onClick = { CodeCover.set(!CodeCover.on) }, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    if (CodeCover.on) androidx.compose.material.icons.Icons.Filled.Visibility else androidx.compose.material.icons.Icons.Filled.VisibilityOff,
+                    if (CodeCover.on) "Show code" else "Cover code step by step",
+                    Modifier.size(18.dp), tint = if (CodeCover.on) p.imp else p.text3,
+                )
+            }
+        }
+        if (active) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("ধাপ ${open.size}/${steps.size}", style = MaterialTheme.typography.labelLarge, color = p.imp, fontFamily = Mono)
+            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            androidx.compose.material3.FilledTonalButton(
+                onClick = { next?.let { open = open + it } }, enabled = next != null,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            ) { Text("পরের ধাপ", style = MaterialTheme.typography.labelLarge) }
+            androidx.compose.material3.TextButton(onClick = { open = steps.indices.toSet() }, enabled = next != null) { Text("সব", style = MaterialTheme.typography.labelLarge) }
+            androidx.compose.material3.IconButton(onClick = { open = emptySet() }, enabled = open.isNotEmpty(), modifier = Modifier.size(32.dp)) {
+                Icon(androidx.compose.material.icons.Icons.Filled.Refresh, "Cover again", Modifier.size(18.dp))
+            }
+        }
+        CodeBlock(code, lang, uid = uid, block = block, hiddenSteps = if (active) steps.filterIndexed { i, _ -> i !in open } else emptyList())
     }
 }
 
@@ -277,7 +331,7 @@ private fun WrittenBodyContent(a: JSONObject, modifier: Modifier, uid: String?, 
     val p = LocalPalette.current
     val primary = MaterialTheme.colorScheme.primary
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        a.str("code")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel(a.str("codeLang") ?: "Code"); CodeBlock(it, a.str("codeLang"), uid = uid, block = bk("code")) } }
+        a.str("code")?.let { CoverableCode(a.str("codeLang") ?: "Code", it, a.str("codeLang"), uid, bk("code")) }
         a.str("image")?.let { AnswerImage(it) }
 
         // সংক্ষেপ — the summary, a string or a list of lines. Web `.written-summary`:
@@ -357,8 +411,8 @@ private fun Points(points: JSONArray, uid: String?, bk: (String) -> String = { i
         for (i in 0 until points.length()) {
             val pt = points.get(i)
             when {
-                pt is JSONObject && pt.str("code") != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BlockLabel(pt.str("label") ?: pt.str("codeLang") ?: "Code"); CodeBlock(pt.getString("code"), pt.str("codeLang"), uid = uid, block = bk("points.$i.code"))
+                pt is JSONObject && pt.str("code") != null -> Column {
+                    CoverableCode(pt.str("label") ?: pt.str("codeLang") ?: "Code", pt.getString("code"), pt.str("codeLang"), uid, bk("points.$i.code"))
                 }
                 pt is JSONObject && pt.str("diagram") != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     BlockLabel(pt.str("label") ?: "Diagram"); DiagramBlock(pt.getString("diagram"), uid = uid, block = bk("points.$i.diagram"))
