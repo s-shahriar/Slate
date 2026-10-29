@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -212,7 +213,7 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
     var cover by remember { mutableStateOf(vm.boolPref("ict-eq-cover")) }
     var importantOnly by remember { mutableStateOf(false) }
     // Each group carries its uid (uidFor('equation', '<topic>/<group id>'), the same key the web stars).
-    val groupUids = remember(html) { Regex("data-uid=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toSet() }
+    val groupUids = remember(html) { equationGroupUids(html) }
     val important = remember(flags, groupUids) { flags.filter { it.key in groupUids && it.value.important }.keys }
     var active by remember { mutableStateOf("eq-${topic.groups.first().id}") }
     var target by remember { mutableStateOf<String?>(null) }
@@ -265,6 +266,83 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
                     Text("এই topic-এ এখনো কোনো group Important হিসেবে সেভ করা হয়নি।", style = MaterialTheme.typography.titleMedium)
                     Text("যেকোনো group-এর শিরোনামের ডান পাশে ⭐ বাটনে ক্লিক করে Important করুন।", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = p.text3)
                 }
+            }
+        }
+    }
+}
+
+/** The group uids a pre-rendered equation page carries (uidFor('equation', '<topic>/<group id>'), the key the web stars). */
+internal fun equationGroupUids(html: String): Set<String> =
+    Regex("data-uid=\"([^\"]+)\"").findAll(html).map { it.groupValues[1] }.toSet()
+
+/** ICT » Equation » Important: every starred group from every topic, one topic page at a time (filtered to its stars). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EquationImportantScreen(vm: SlateViewModel, onBack: () -> Unit) {
+    val m = vm.module(ModuleId.ICT)
+    val ver by m.blobs.version.collectAsState()
+    val flags by m.progress.flags.collectAsState()
+    val p = LocalPalette.current
+    val all = remember(ver) { FormulaIndex.equationTopics(m.blobs).map { (t, html) -> Triple(t, html, equationGroupUids(html)) } }
+    // Topics with at least one starred group, and those groups' uids.
+    val marked = remember(all, flags) {
+        all.mapNotNull { (t, html, uids) ->
+            val on = uids.filter { flags[it]?.important == true }.toSet()
+            if (on.isEmpty()) null else Triple(t, html, on)
+        }
+    }
+    var picked by remember { mutableStateOf<String?>(null) }
+    val current = marked.firstOrNull { it.first.id == picked } ?: marked.firstOrNull()
+    var cover by remember { mutableStateOf(vm.boolPref("ict-eq-cover")) }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            SlateTopBar(
+                title = { BarTitle("Important — Equation", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = {
+                    IconButton(onClick = { cover = !cover; vm.setBoolPref("ict-eq-cover", cover) }) {
+                        Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, if (cover) "Show equations" else "Cover equations")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad)) {
+            if (current == null) {
+                Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("এখনো কোনো equation group Important হিসেবে সেভ করা হয়নি।", style = MaterialTheme.typography.titleMedium)
+                    Text("যেকোনো topic খুলে group-এর শিরোনামের ডান পাশে ⭐ চাপো — সব topic-এর Important group এখানে আসবে।", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = p.text3)
+                }
+                return@Column
+            }
+            val (topic, html, on) = current
+            SlateDropdown(
+                marked.map { (t, _, u) -> DropOption(t.id, TopicCatalog.ictTopicNames[t.id] ?: t.id, count = u.size) },
+                topic.id, { picked = it },
+                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            if (cover) CoverBanner()
+            val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
+            val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
+            val onPage = remember(saved) { saved.filterKeys { it.startsWith("equation:") } }
+            val owner = remember { Any() }
+            var clearNonce by remember { mutableIntStateOf(0) }
+            // A new page per topic: the WebView is built once per html.
+            key(topic.id) {
+                FormulaPage(
+                    PageKind.EQUATION, html, p, p.isDark, cover,
+                    importantOnly = true, important = on,
+                    onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
+                    highlights = onPage, clearSelectionNonce = clearNonce,
+                    onSelection = { uid, anchors ->
+                        ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
+                        else com.syed.slate.ui.highlight.HlTarget.Add(owner, uid, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
+                    },
+                    onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
+                )
             }
         }
     }

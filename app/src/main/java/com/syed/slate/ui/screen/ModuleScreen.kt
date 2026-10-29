@@ -131,6 +131,7 @@ class ModuleNav(
     val onMath: () -> Unit,
     val onFinance: () -> Unit,
     val onEquation: (String) -> Unit,
+    val onEquationImportant: () -> Unit = {},
     val onSql: (String) -> Unit = {},
     val onAdmin: () -> Unit = {},
     val onRoutine: () -> Unit = {},
@@ -376,6 +377,13 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 }
             }
         } else if (inEquation) {
+            // Every starred group across the topics, like the web's Important card on the Equation tab.
+            item(key = "equation-actions") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val saved = flags.count { it.key.startsWith("equation:") && it.value.important }
+                    Action(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onEquationImportant() }
+                }
+            }
             items(equationTopics, key = { it.id }) { t ->
                 Row(
                     Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onEquation(t.id) }.padding(horizontal = 18.dp, vertical = 16.dp),

@@ -39,6 +39,7 @@ import com.syed.slate.ui.screen.ExamConfigScreen
 import com.syed.slate.ui.screen.ExamRunScreen
 import com.syed.slate.ui.screen.AdminScreen
 import com.syed.slate.ui.screen.BinScreen
+import com.syed.slate.ui.screen.EquationImportantScreen
 import com.syed.slate.ui.screen.EquationScreen
 import com.syed.slate.ui.screen.SqlLessonScreen
 import com.syed.slate.ui.screen.FinancialTermsScreen
@@ -139,6 +140,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onMath = { nav.navigate("math") },
                         onFinance = { nav.navigate("finance") },
                         onEquation = { t -> nav.navigate("equation/$t") },
+                        onEquationImportant = { nav.navigate("equation_important") },
                         onSql = { l -> nav.navigate("sql/$l") },
                         onAdmin = { nav.navigate("admin") },
                         onRoutine = { nav.navigate("routine/${id.key}") },
@@ -200,6 +202,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         composable("admin") { Themed(Scope.GENERAL, ModuleId.GENERAL) { AdminScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("finance") { Themed(Scope.GENERAL) { FinancialTermsScreen(onBack = { nav.popBackStack() }) } }
         composable("equation/{t}") { e -> Themed(Scope.ICT, ModuleId.ICT) { EquationScreen(vm, e.arg("t"), onBack = { nav.popBackStack() }) } }
+        composable("equation_important") { Themed(Scope.ICT, ModuleId.ICT) { EquationImportantScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("sql/{l}") { e ->
             Themed(Scope.ICT, ModuleId.ICT) {
                 // Prev / next replace this lesson, so Back always returns to the lesson list.
