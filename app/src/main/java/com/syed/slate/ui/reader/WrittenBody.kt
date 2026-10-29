@@ -133,27 +133,30 @@ fun CoverableCode(label: String, code: String, lang: String?, uid: String?, bloc
     var open by remember(code, CodeCover.on) { mutableStateOf(emptySet<Int>()) }
     val next = steps.indices.firstOrNull { it !in open }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // One row: label, the step count and controls (in eye mode), and the eye at the end.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             BlockLabel(label)
+            if (active) Text("ধাপ ${open.size}/${steps.size}", style = MaterialTheme.typography.labelLarge, color = p.imp, fontFamily = Mono)
             androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            if (active) {
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = { next?.let { open = open + it } }, enabled = next != null, modifier = Modifier.height(32.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                ) { Text("পরের ধাপ", style = MaterialTheme.typography.labelLarge) }
+                androidx.compose.material3.TextButton(
+                    onClick = { open = steps.indices.toSet() }, enabled = next != null, modifier = Modifier.height(32.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) { Text("সব", style = MaterialTheme.typography.labelLarge) }
+                androidx.compose.material3.IconButton(onClick = { open = emptySet() }, enabled = open.isNotEmpty(), modifier = Modifier.size(32.dp)) {
+                    Icon(androidx.compose.material.icons.Icons.Filled.Refresh, "Cover again", Modifier.size(18.dp))
+                }
+            }
             androidx.compose.material3.IconButton(onClick = { CodeCover.set(!CodeCover.on) }, modifier = Modifier.size(32.dp)) {
                 Icon(
                     if (CodeCover.on) androidx.compose.material.icons.Icons.Filled.Visibility else androidx.compose.material.icons.Icons.Filled.VisibilityOff,
                     if (CodeCover.on) "Show code" else "Cover code step by step",
                     Modifier.size(18.dp), tint = if (CodeCover.on) p.imp else p.text3,
                 )
-            }
-        }
-        if (active) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("ধাপ ${open.size}/${steps.size}", style = MaterialTheme.typography.labelLarge, color = p.imp, fontFamily = Mono)
-            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-            androidx.compose.material3.FilledTonalButton(
-                onClick = { next?.let { open = open + it } }, enabled = next != null,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-            ) { Text("পরের ধাপ", style = MaterialTheme.typography.labelLarge) }
-            androidx.compose.material3.TextButton(onClick = { open = steps.indices.toSet() }, enabled = next != null) { Text("সব", style = MaterialTheme.typography.labelLarge) }
-            androidx.compose.material3.IconButton(onClick = { open = emptySet() }, enabled = open.isNotEmpty(), modifier = Modifier.size(32.dp)) {
-                Icon(androidx.compose.material.icons.Icons.Filled.Refresh, "Cover again", Modifier.size(18.dp))
             }
         }
         CodeBlock(code, lang, uid = uid, block = block, hiddenSteps = if (active) steps.filterIndexed { i, _ -> i !in open } else emptyList())
