@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 /**
  * Code eye mode, as ict-quiz's lib/codeCover.js (keep the two rules in step): a program is covered one logical step at a
  * time — a run of non-blank lines — so its logic can be recalled before peeking. Boilerplate stays visible as the frame
- * (#include / import, class and main headers, a lone brace, `return 0;`). One remembered setting for every code block.
+ * (#include / import, class and main headers, a lone brace, `return 0;`). One setting for every code block, for this launch only.
  */
 object CodeCover {
     private const val KEY = "ict-code-cover"
@@ -17,9 +17,11 @@ object CodeCover {
     fun init(ctx: android.content.Context) {
         if (prefs != null) return
         prefs = ctx.applicationContext.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
-        on = prefs?.getBoolean(KEY, false) ?: false
+        // Always starts off (the user's rule): the setting is not remembered across launches, so code never opens
+        // blurred. The old stored value is cleared once.
+        prefs?.edit()?.remove(KEY)?.apply()
     }
-    fun set(v: Boolean) { on = v; prefs?.edit()?.putBoolean(KEY, v)?.apply() }
+    fun set(v: Boolean) { on = v }
 
     private val SCAFFOLD = listOf(
         Regex("""^\s*$"""),

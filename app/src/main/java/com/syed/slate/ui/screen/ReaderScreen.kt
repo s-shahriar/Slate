@@ -150,6 +150,10 @@ fun ReaderScreen(
         }
     }
     val peekState by peek
+    // The card whose bar the user hid (✕). Cleared once that card's bar would go away anyway, so it returns next time.
+    var hiddenPeek by remember { mutableStateOf<String?>(null) }
+    val peekKey = peekState?.first?.item?.let { it.uid ?: it.id }
+    LaunchedEffect(peekKey) { if (peekKey != hiddenPeek) hiddenPeek = null }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -213,7 +217,8 @@ fun ReaderScreen(
             }
         }
             QuestionPeekBar(
-                question = peekState?.first?.item?.question, number = peekState?.first?.number,
+                question = peekState?.first?.item?.question?.takeIf { peekKey != hiddenPeek }, number = peekState?.first?.number,
+                onHide = { hiddenPeek = peekKey },
                 onJump = { peekState?.second?.let { i -> scope.launch { list.animateScrollToItem(i) } } },
                 modifier = Modifier.align(Alignment.TopCenter),
                 // The open card's own flag bar, so it is reachable mid-answer (it also sits at the card's end).

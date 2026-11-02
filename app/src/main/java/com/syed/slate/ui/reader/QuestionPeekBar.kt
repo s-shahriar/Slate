@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
@@ -53,13 +54,14 @@ import com.syed.slate.ui.theme.LocalPalette
  * The web's QuestionPeek (`shared/QuestionPeek.jsx`): a floating copy of the question while a long open answer is read.
  *  - Label "প্রশ্ন" with a chevron when the question is longer than two lines; tapping the text expands / collapses it in
  *    place (collapsed: two lines with a fade; expanded: up to 45% of the screen, scrollable).
- *  - Up-arrow button scrolls back to the card's real header.
+ *  - Up-arrow button scrolls back to the card's real header; [onHide] (✕) hides the bar for that card until it would
+ *    have gone away anyway (header back in view or the card ends), as the web's ✕.
  *  - Topic-coloured left rule, tinted border, shadow; fades in only while the card's body is on screen.
  *  - [actions]: the card's flag bar (Nail / Important / Weak / Note / Delete) on a row under the question, so it can be
  *    used from anywhere in a long answer, not only from the card's end.
  */
 @Composable
-fun QuestionPeekBar(question: String?, number: Int?, onJump: () -> Unit, modifier: Modifier = Modifier, actions: (@Composable () -> Unit)? = null) {
+fun QuestionPeekBar(question: String?, number: Int?, onJump: () -> Unit, modifier: Modifier = Modifier, onHide: (() -> Unit)? = null, actions: (@Composable () -> Unit)? = null) {
     val color = MaterialTheme.colorScheme.primary
     val p = LocalPalette.current
     // Keep the last question while fading out, so the bar doesn't blank mid-animation.
@@ -116,6 +118,12 @@ fun QuestionPeekBar(question: String?, number: Int?, onJump: () -> Unit, modifie
                         color = Color.Transparent, border = BorderStroke(1.dp, p.outline),
                     ) {
                         Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.ArrowUpward, "প্রশ্নে ফিরে যাও", Modifier.size(16.dp), tint = p.text2) }
+                    }
+                    if (onHide != null) Surface(
+                        onClick = onHide, modifier = Modifier.size(32.dp), shape = RoundedCornerShape(8.dp),
+                        color = Color.Transparent, border = BorderStroke(1.dp, p.outline),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Close, "লুকাও", Modifier.size(16.dp), tint = p.text2) }
                     }
                 }
                 if (actions != null) {
