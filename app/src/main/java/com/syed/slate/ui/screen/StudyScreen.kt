@@ -72,7 +72,10 @@ private enum class StudyFilter(val label: String) { ALL("সব"), IMPORTANT("Im
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, focus: String?, onBack: () -> Unit) {
+fun StudyScreen(
+    vm: SlateViewModel, id: ModuleId, group: String, topic: String, focus: String?, onBack: () -> Unit,
+    initialSub: String? = null, onSwitchTopic: (String) -> Unit = {},
+) {
     val m = vm.module(id)
     val state by m.content.state.collectAsState()
     val flags by m.progress.flags.collectAsState()
@@ -85,8 +88,9 @@ fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, 
     var page by rememberSaveable { mutableIntStateOf(0) }
     // LiveMCQ topics can also be browsed by sub-topic (সন্ধি, সমাস …): a picker first, then that sub-topic's questions.
     val subList = remember(content, group, topic) { if (group == "livemcq") content?.subtopicsFor(topic).orEmpty() else emptyList() }
-    var bySub by rememberSaveable { mutableStateOf(false) }
-    var activeSub by rememberSaveable { mutableStateOf<String?>(null) }
+    var bySub by rememberSaveable { mutableStateOf(initialSub != null) }
+    var activeSub by rememberSaveable { mutableStateOf(initialSub) }
+    var switcher by remember { mutableStateOf(false) }
     val haystacks = remember(all) { all.associate { it.id to SearchText.haystack(it) } }
     val tokens = SearchText.tokens(query)
 
@@ -112,6 +116,7 @@ fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, 
     val pages = maxOf(1, (visible.size + PAGE - 1) / PAGE)
     val shown = visible.drop(page.coerceAtMost(pages - 1) * PAGE).take(PAGE)
     val list = rememberLazyListState()
+    com.syed.slate.ui.component.KeepPlaceOnRemoval(list, shown.map { it.id })
     val scope = rememberCoroutineScope()
     val session by m.auth.session.collectAsState()
 
@@ -151,6 +156,20 @@ fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, 
         }
     }
 
+    // Categories of this section (and, for LiveMCQ, this category's sub-topics): move sideways without going back.
+    if (switcher && content != null) {
+        val g = content.groups.firstOrNull { it.key == group }
+        com.syed.slate.ui.component.TopicSwitcherSheet(
+            g?.title ?: "Categories", g?.topics.orEmpty().map { com.syed.slate.ui.component.SwitchEntry(it.slug, it.name, it.count) }, topic,
+            onTopic = { switcher = false; onSwitchTopic(it) }, onDismiss = { switcher = false },
+            subtopics = if (subList.isEmpty()) emptyList() else
+                listOf(com.syed.slate.ui.component.SwitchEntry(null, "সব sub-topic", all.count { flags[it.uid]?.nailed != true })) +
+                    subtopicCards.map { (s, n) -> com.syed.slate.ui.component.SwitchEntry(s.slug, s.name, n) },
+            currentSub = if (bySub) activeSub else null,
+            onSubtopic = { s -> switcher = false; bySub = s != null; activeSub = s; page = 0 },
+        )
+    }
+
     // A deep link to a nailed question opens the Nailed list so the card is there to be found.
     LaunchedEffect(focus) { if (focus != null && flags[focus]?.nailed == true) filter = StudyFilter.NAILED }
 
@@ -166,6 +185,7 @@ fun StudyScreen(vm: SlateViewModel, id: ModuleId, group: String, topic: String, 
             SlateTopBar(
                 title = { BarTitle(name, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = { com.syed.slate.ui.component.TopicSwitchButton { switcher = true } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },

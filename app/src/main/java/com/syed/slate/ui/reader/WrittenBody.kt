@@ -454,10 +454,10 @@ private fun Extended(e: JSONObject, uid: String?) {
             Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = primary)
             Text(e.str("title") ?: "More", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (open) {
+        androidx.compose.animation.AnimatedVisibility(open, enter = com.syed.slate.ui.component.Motion.expand, exit = com.syed.slate.ui.component.Motion.collapse) { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             e.optJSONArray("points")?.strings()?.forEachIndexed { i, t -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Dot(); HText(uid, "ext.points.$i", t, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium) } }
             e.optJSONArray("table")?.takeIf { it.length() > 0 }?.let { DataTable(e.optJSONArray("tableHeaders")?.strings(), rows(it), uid = uid, prefix = "ext.table") }
             e.str("diagram")?.let { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { BlockLabel("Diagram"); DiagramBlock(it, uid = uid, block = "ext.diagram") } }
-        }
+        } }
     }
 }

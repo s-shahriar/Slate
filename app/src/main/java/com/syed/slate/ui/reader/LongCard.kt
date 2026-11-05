@@ -73,7 +73,11 @@ fun LongCard(
         }
         // The listing the card is about, visible while collapsed.
         item.headerCode?.let { CodeBlock(it, item.headerCodeLang, uid = item.uid, block = "headerCode") }
-        if (open) item.answer?.let { WrittenBody(it, uid = item.uid) }
+        item.answer?.let { a ->
+            androidx.compose.animation.AnimatedVisibility(open, enter = com.syed.slate.ui.component.Motion.expand, exit = com.syed.slate.ui.component.Motion.collapse) {
+                WrittenBody(a, uid = item.uid)
+            }
+        }
         item.uid?.let { LongFlagBar(item, flag, it, progress) }
     }
 }

@@ -185,16 +185,16 @@ private fun LocalContentColorFallback(): Color = androidx.compose.material3.Loca
 /** ICT » Equation: formula sheets for one topic, each group a diagram plus its equations, with cover-and-recall and per-group Important stars. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EquationScreen(vm: SlateViewModel, topicId: String, onBack: () -> Unit) {
+fun EquationScreen(vm: SlateViewModel, topicId: String, onBack: () -> Unit, onSwitchTopic: (String) -> Unit = {}) {
     val blobs = vm.module(ModuleId.ICT).blobs
     val ver by blobs.version.collectAsState()
     val found = remember(ver, topicId) { FormulaIndex.equationTopics(blobs).firstOrNull { it.first.id == topicId } }
-    if (found == null) NotDownloaded("Equations", onBack) else EquationContent(vm, found.first, found.second, onBack)
+    if (found == null) NotDownloaded("Equations", onBack) else EquationContent(vm, found.first, found.second, onBack, onSwitchTopic)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: String, onBack: () -> Unit) {
+private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: String, onBack: () -> Unit, onSwitchTopic: (String) -> Unit) {
     val p = LocalPalette.current
     val m = vm.module(ModuleId.ICT)
     val flags by m.progress.flags.collectAsState()
@@ -206,6 +206,15 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
     var active by remember { mutableStateOf("eq-${topic.groups.first().id}") }
     var target by remember { mutableStateOf<String?>(null) }
     var nonce by remember { mutableIntStateOf(0) }
+    var switcher by remember { mutableStateOf(false) }
+    if (switcher) {
+        val blobs = vm.module(ModuleId.ICT).blobs
+        val topics = remember { FormulaIndex.equationTopics(blobs).map { it.first } }
+        com.syed.slate.ui.component.TopicSwitcherSheet(
+            "Equation", topics.map { com.syed.slate.ui.component.SwitchEntry(it.id, TopicCatalog.ictTopicNames[it.id] ?: it.id, it.equations) }, topic.id,
+            onTopic = { switcher = false; onSwitchTopic(it) }, onDismiss = { switcher = false },
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -220,6 +229,7 @@ private fun EquationContent(vm: SlateViewModel, topic: EquationTopic, html: Stri
                     IconButton(onClick = { importantOnly = !importantOnly }) {
                         Icon(if (importantOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, "Important only", tint = if (importantOnly) p.imp else LocalContentColorFallback())
                     }
+                    com.syed.slate.ui.component.TopicSwitchButton { switcher = true }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )

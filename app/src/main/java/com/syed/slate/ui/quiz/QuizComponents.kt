@@ -91,21 +91,26 @@ enum class OptState { IDLE, CORRECT, WRONG, DIM }
 @Composable
 fun OptionRow(module: ModuleId, letter: String, text: String, state: OptState, enabled: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
-    val (bg, border) = when (state) {
+    val (bgTarget, borderTarget) = when (state) {
         OptState.CORRECT -> p.ok.copy(alpha = .16f) to p.ok
         OptState.WRONG -> p.bad.copy(alpha = .16f) to p.bad
         else -> p.surface to p.outline
     }
+    // The answer fades in rather than snapping (Motion.FAST, so the next tap never waits).
+    val bg by androidx.compose.animation.animateColorAsState(bgTarget, com.syed.slate.ui.component.Motion.fast(), label = "optBg")
+    val border by androidx.compose.animation.animateColorAsState(borderTarget, com.syed.slate.ui.component.Motion.fast(), label = "optBorder")
+    val coin by androidx.compose.animation.animateColorAsState(
+        when (state) { OptState.CORRECT -> p.ok; OptState.WRONG -> p.bad; else -> p.elevated }, com.syed.slate.ui.component.Motion.fast(), label = "optCoin",
+    )
+    val fade by androidx.compose.animation.core.animateFloatAsState(if (state == OptState.DIM) .55f else 1f, com.syed.slate.ui.component.Motion.fast(), label = "optAlpha")
     Row(
-        Modifier.fillMaxWidth().alpha(if (state == OptState.DIM) .55f else 1f)
+        Modifier.fillMaxWidth().alpha(fade)
             .clip(MaterialTheme.shapes.medium).background(bg).border(BorderStroke(1.5.dp, border), MaterialTheme.shapes.medium)
             .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
-            Modifier.size(30.dp).clip(CircleShape).background(
-                when (state) { OptState.CORRECT -> p.ok; OptState.WRONG -> p.bad; else -> p.elevated },
-            ),
+            Modifier.size(30.dp).clip(CircleShape).background(coin),
             contentAlignment = Alignment.Center,
         ) {
             when (state) {

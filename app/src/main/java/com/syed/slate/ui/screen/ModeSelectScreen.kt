@@ -52,6 +52,7 @@ import com.syed.slate.ui.theme.LocalPalette
 fun ModeSelectScreen(
     vm: SlateViewModel, id: ModuleId, group: String, topic: String,
     onBack: () -> Unit, onQuiz: (PoolSet) -> Unit, onStudy: () -> Unit,
+    onSwitchTopic: (String) -> Unit = {}, onStudySub: (String) -> Unit = {},
 ) {
     val m = vm.module(id)
     val state by m.content.state.collectAsState()
@@ -62,6 +63,7 @@ fun ModeSelectScreen(
     val items = remember(content, group, topic) { content?.items(group, topic).orEmpty() }
     val counts = remember(items, flags) { QuizPool.counts(items, flags) }
     var chooser by remember { mutableStateOf(false) }
+    var switcher by remember { mutableStateOf(false) }
     val quizzable = counts.getValue(PoolSet.ALL)
 
     Scaffold(
@@ -70,6 +72,7 @@ fun ModeSelectScreen(
             SlateTopBar(
                 title = { BarTitle(name, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = { com.syed.slate.ui.component.TopicSwitchButton { switcher = true } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -78,6 +81,19 @@ fun ModeSelectScreen(
             ModeCard(Icons.Filled.PlayArrow, "MCQ Mode", "$quizzable questions", quizzable > 0) { chooser = true }
             ModeCard(Icons.AutoMirrored.Filled.MenuBook, "Study Mode", "${items.size} questions", items.isNotEmpty(), onStudy)
         }
+    }
+
+    // Categories of this section; for LiveMCQ a sub-topic opens Study on it.
+    if (switcher && content != null) {
+        val g = content.groups.firstOrNull { it.key == group }
+        val subs = if (group == "livemcq") com.syed.slate.content.Subtopics.cards(items.filter { it.isQuizzable && flags[it.uid]?.nailed != true }, content.subtopicsFor(topic)) else emptyList()
+        com.syed.slate.ui.component.TopicSwitcherSheet(
+            g?.title ?: "Categories", g?.topics.orEmpty().map { com.syed.slate.ui.component.SwitchEntry(it.slug, it.name, it.count) }, topic,
+            onTopic = { switcher = false; onSwitchTopic(it) }, onDismiss = { switcher = false },
+            subtopics = if (subs.isEmpty()) emptyList() else listOf(com.syed.slate.ui.component.SwitchEntry(null, "সব sub-topic")) + subs.map { (s, n) -> com.syed.slate.ui.component.SwitchEntry(s.slug, s.name, n) },
+            currentSub = "",
+            onSubtopic = { s -> switcher = false; if (s == null) onStudy() else onStudySub(s) },
+        )
     }
 
     // Always offered, like the web app: সব / Important / Weak / Nailed — disabled options show their zero counts.

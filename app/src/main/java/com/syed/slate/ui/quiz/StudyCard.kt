@@ -1,7 +1,16 @@
 package com.syed.slate.ui.quiz
 
 import com.syed.slate.ui.component.categoryEditable
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import com.syed.slate.ui.component.Motion
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,6 +62,16 @@ fun StudyCard(
     var explOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     val correct = item.correctAnswer
     val revealed = selected != null
+    // Hiding first brings the question back into view, then folds the answer away below it. Folding a tall
+    // explanation while scrolled past it used to drop the reader onto question N+1 or N+2.
+    val questionTop = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    val hide: () -> Unit = {
+        scope.launch {
+            questionTop.bringIntoView()
+            selected = null; explOpen = false
+        }
+    }
 
     Column(
         modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface)
@@ -64,10 +83,12 @@ fun StudyCard(
             Text(it, Modifier.clip(MaterialTheme.shapes.small).background(p.primaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelMedium, color = p.onPrimaryContainer)
         }
-        number?.let { n ->
-            Text("Q$n", style = MaterialTheme.typography.labelMedium.copy(fontFamily = Mono), color = MaterialTheme.colorScheme.primary)
+        Column(Modifier.bringIntoViewRequester(questionTop), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            number?.let { n ->
+                Text("Q$n", style = MaterialTheme.typography.labelMedium.copy(fontFamily = Mono), color = MaterialTheme.colorScheme.primary)
+            }
+            QuestionBody(module, item)
         }
-        QuestionBody(module, item)
         item.optionList().forEach { (letter, text) ->
             val state = when {
                 !revealed -> OptState.IDLE
@@ -80,13 +101,19 @@ fun StudyCard(
                 explOpen = letter != correct
             }
         }
+        val expl = item.explanation
+        // The explanation opens and folds in place; its header carries a second লুকাও, so a long one can be closed
+        // without scrolling to its end.
+        AnimatedVisibility(revealed && expl != null && explOpen, enter = Motion.expand, exit = Motion.collapse) {
+            ExplanationBox(module, expl.orEmpty(), selected == correct, uid = item.uid, headerEnd = {
+                TextButton(onClick = hide, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp), modifier = Modifier.height(30.dp)) { Text("লুকাও") }
+            })
+        }
         if (revealed) {
-            val expl = item.explanation
             // One toggle at a time: "show" while the explanation is folded, "hide" once it is open (hide also
             // clears the pick, as the web's Hide does). Cards without an explanation only offer hide.
-            if (expl != null && explOpen) ExplanationBox(module, expl, selected == correct, uid = item.uid)
             if (expl != null && !explOpen) TextButton(onClick = { explOpen = true }) { Text("ব্যাখ্যা দেখাও") }
-            else TextButton(onClick = { selected = null; explOpen = false }) { Text("লুকাও") }
+            else TextButton(onClick = hide) { Text("লুকাও") }
         }
         item.uid?.let { uid ->
             // LiveMCQ: topic / sub-topic; ICT MCQ: category (owner only, see CategoryEdit).

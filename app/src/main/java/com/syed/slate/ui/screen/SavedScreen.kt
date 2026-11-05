@@ -88,6 +88,8 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
     }
     val perTopic = remember(saved) { saved.groupingBy { "${it.group}/${it.topic}" }.eachCount() }
     val shownItems = remember(saved, topic) { if (topic == null) saved else saved.filter { "${it.group}/${it.topic}" == topic } }
+    // Nailing / un-marking the card at the top of the screen drops it from this list: stay on the next one.
+    com.syed.slate.ui.component.KeepPlaceOnRemoval(list, shownItems.map { it.id })
     val pages = maxOf(1, (shownItems.size + PAGE - 1) / PAGE)
     val title = if (kind == PoolSet.NAILED) "Nailed It" else "Important"
 

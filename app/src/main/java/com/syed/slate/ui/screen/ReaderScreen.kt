@@ -77,7 +77,7 @@ private sealed interface ListRow {
 @Composable
 fun ReaderScreen(
     vm: SlateViewModel, id: ModuleId, group: String, topic: String, segment: String?, focus: String?,
-    onBack: () -> Unit, onSegment: (String) -> Unit, onFocusSegment: (String) -> Unit,
+    onBack: () -> Unit, onSegment: (String) -> Unit, onFocusSegment: (String) -> Unit, onSwitchTopic: (String) -> Unit = {},
 ) {
     val m = vm.module(id)
     val state by m.content.state.collectAsState()
@@ -86,6 +86,14 @@ fun ReaderScreen(
     val content = (state as? ContentState.Ready)?.content
     val name = content?.groups?.firstOrNull { it.key == group }?.topics?.firstOrNull { it.slug == topic }?.name ?: TopicCatalog.prettify(topic)
     val all = remember(content, group, topic) { content?.items(group, topic).orEmpty() }
+    var switcher by remember { mutableStateOf(false) }
+    if (switcher && content != null) {
+        val g = content.groups.firstOrNull { it.key == group }
+        com.syed.slate.ui.component.TopicSwitcherSheet(
+            g?.title ?: "Categories", g?.topics.orEmpty().map { com.syed.slate.ui.component.SwitchEntry(it.slug, it.name, it.count) }, topic,
+            onTopic = { switcher = false; onSwitchTopic(it) }, onDismiss = { switcher = false },
+        )
+    }
 
     var filter by rememberSaveable { mutableStateOf(ReaderFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -127,6 +135,8 @@ fun ReaderScreen(
     // Deep link from search: a segmented question is not on the topic page, so go to its segment first;
     // then open the card and scroll to it.
     val list = rememberLazyListState()
+    // Nailing or deleting the card at the top of the screen drops it from the list: stay on the next one.
+    com.syed.slate.ui.component.KeepPlaceOnRemoval(list, rows.map { it.lazyKey() })
     val scope = rememberCoroutineScope()
     LaunchedEffect(focus, all) {
         val target = all.firstOrNull { it.uid == focus } ?: return@LaunchedEffect
@@ -161,6 +171,7 @@ fun ReaderScreen(
             SlateTopBar(
                 title = { BarTitle(segment ?: name, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = { com.syed.slate.ui.component.TopicSwitchButton { switcher = true } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -193,7 +204,7 @@ fun ReaderScreen(
                     Modifier.padding(24.dp), style = MaterialTheme.typography.bodyLarge,
                 )
             }
-            items(rows, key = { r -> when (r) { is ListRow.SegmentCard -> "seg-${r.name}"; is ListRow.Label -> "label-${r.key}"; is ListRow.Card -> r.item.id } }) { r ->
+            items(rows, key = { r -> r.lazyKey() }) { r ->
                 when (r) {
                     is ListRow.SegmentCard -> Row(
                         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.primaryContainer).clickable { onSegment(r.name) }.padding(16.dp),
@@ -227,3 +238,5 @@ fun ReaderScreen(
         }
     }
 }
+
+private fun ListRow.lazyKey(): Any = when (this) { is ListRow.SegmentCard -> "seg-$name"; is ListRow.Label -> "label-$key"; is ListRow.Card -> item.id }

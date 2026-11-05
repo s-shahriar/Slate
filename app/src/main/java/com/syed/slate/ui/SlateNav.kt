@@ -114,7 +114,11 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         LocalToggleHand provides toggleHand,
         LocalToggleTheme provides toggleTheme,
     ) {
-    NavHost(nav, startDestination = "home") {
+    NavHost(
+        nav, startDestination = "home",
+        enterTransition = com.syed.slate.ui.component.Motion.enter, exitTransition = com.syed.slate.ui.component.Motion.exit,
+        popEnterTransition = com.syed.slate.ui.component.Motion.popEnter, popExitTransition = com.syed.slate.ui.component.Motion.popExit,
+    ) {
         composable("home") {
             Themed(Scope.SHELL) {
                 HomeScreen(vm, dark, onModule = { nav.navigate("module/${it.key}") }, onSettings = { nav.navigate("settings") })
@@ -159,6 +163,8 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                     vm, id, g, t, onBack = { nav.popBackStack() },
                     onQuiz = { set -> nav.navigate("quiz/${id.key}/$g/$t?set=${set.key}") },
                     onStudy = { nav.navigate("study/${id.key}/$g/$t") },
+                    onSwitchTopic = { nt -> nav.replace("topic/${id.key}/$g/$nt") },
+                    onStudySub = { s -> nav.navigate("study/${id.key}/$g/$t?sub=${Uri.encode(s)}") },
                 )
             }
         }
@@ -168,10 +174,20 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                 QuizScreen(vm, id, e.arg("g"), e.arg("t"), PoolSet.of(e.arguments!!.getString("set")), onBack = { nav.popBackStack() }, onHome = { nav.toModuleHome(id) })
             }
         }
-        composable("study/{m}/{g}/{t}?focus={focus}", listOf(navArgument("focus") { type = NavType.StringType; nullable = true; defaultValue = null })) { e ->
-            val id = e.module()
+        composable(
+            "study/{m}/{g}/{t}?focus={focus}&sub={sub}",
+            listOf(
+                navArgument("focus") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("sub") { type = NavType.StringType; nullable = true; defaultValue = null },
+            ),
+        ) { e ->
+            val id = e.module(); val g = e.arg("g")
             Themed(id.scope(), id) {
-                StudyScreen(vm, id, e.arg("g"), e.arg("t"), e.arguments!!.getString("focus")?.ifEmpty { null }, onBack = { nav.popBackStack() })
+                StudyScreen(
+                    vm, id, g, e.arg("t"), e.arguments!!.getString("focus")?.ifEmpty { null }, onBack = { nav.popBackStack() },
+                    initialSub = e.arguments!!.getString("sub")?.ifEmpty { null },
+                    onSwitchTopic = { nt -> nav.replace("study/${id.key}/$g/$nt") },
+                )
             }
         }
         composable(
@@ -189,6 +205,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                     onBack = { nav.popBackStack() },
                     onSegment = { seg -> nav.navigate("read/${id.key}/$g/$t?segment=${Uri.encode(seg)}") },
                     // From a search hit: replace this page with the segment page that holds the question.
+                    onSwitchTopic = { nt -> nav.replace("read/${id.key}/$g/$nt") },
                     onFocusSegment = { seg ->
                         nav.popBackStack()
                         nav.navigate("read/${id.key}/$g/$t?segment=${Uri.encode(seg)}&focus=${Uri.encode(focus ?: "")}")
@@ -201,7 +218,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         composable("math") { Themed(Scope.GENERAL, ModuleId.GENERAL) { MathFormulasScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("admin") { Themed(Scope.GENERAL, ModuleId.GENERAL) { AdminScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("finance") { Themed(Scope.GENERAL) { FinancialTermsScreen(onBack = { nav.popBackStack() }) } }
-        composable("equation/{t}") { e -> Themed(Scope.ICT, ModuleId.ICT) { EquationScreen(vm, e.arg("t"), onBack = { nav.popBackStack() }) } }
+        composable("equation/{t}") { e -> Themed(Scope.ICT, ModuleId.ICT) { EquationScreen(vm, e.arg("t"), onBack = { nav.popBackStack() }, onSwitchTopic = { nt -> nav.replace("equation/$nt") }) } }
         composable("equation_important") { Themed(Scope.ICT, ModuleId.ICT) { EquationImportantScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("sql/{l}") { e ->
             Themed(Scope.ICT, ModuleId.ICT) {
@@ -234,4 +251,10 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         }
     }
     }
+}
+
+/** Opens [route] in place of the current page (a sideways move, e.g. the category switcher), so Back still goes up. */
+private fun androidx.navigation.NavController.replace(route: String) {
+    val current = currentBackStackEntry?.destination?.id
+    navigate(route) { if (current != null) popUpTo(current) { inclusive = true } }
 }
