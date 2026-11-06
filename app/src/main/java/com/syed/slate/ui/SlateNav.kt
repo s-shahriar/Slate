@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -116,8 +118,10 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
     ) {
     NavHost(
         nav, startDestination = "home",
-        enterTransition = com.syed.slate.ui.component.Motion.enter, exitTransition = com.syed.slate.ui.component.Motion.exit,
-        popEnterTransition = com.syed.slate.ui.component.Motion.popEnter, popExitTransition = com.syed.slate.ui.component.Motion.popExit,
+        // Page changes are instant: a fade between pages let the window show through for a moment, which read as a
+        // flash on every step (removed in 0.8.14 at the user's request). In-page motion lives in Motion.
+        enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None },
     ) {
         composable("home") {
             Themed(Scope.SHELL) {
