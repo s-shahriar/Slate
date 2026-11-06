@@ -686,6 +686,19 @@
   font-weight: 600;
 }
 
+/* Two-line header: the Bengali name, then the full English name smaller under it
+   (Curved / Total Surface Area spelled out instead of CSA / TSA, without widening
+   the columns). */
+.mf-cmp-table th .mf-th-en {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74em;
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0.8;
+}
+.mf-cmp-table th { vertical-align: bottom; }
+
 /* ── Abbr legend ────────────────────────────── */
 .mf-legend {
   display: flex;
