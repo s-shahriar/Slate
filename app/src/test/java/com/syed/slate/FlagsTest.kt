@@ -19,9 +19,22 @@ class FlagsTest {
         assertFalse(f.important); assertFalse(f.weak)
     }
 
-    @Test fun nailingClearsWeakButKeepsImportant() {
+    @Test fun nailingClearsImportantAndWeak() {
         val f = FlagRules.toggleNailed(FlagRules.toggleWeak(Flag()))
-        assertTrue(f.nailed && f.important); assertFalse(f.weak)
+        assertTrue(f.nailed); assertFalse(f.important); assertFalse(f.weak)
+    }
+
+    @Test fun markingImportantOrWeakUnnails() {
+        val nailed = FlagRules.toggleNailed(Flag())
+        FlagRules.toggleImportant(nailed).let { assertTrue(it.important); assertFalse(it.nailed) }
+        FlagRules.toggleWeak(nailed).let { assertTrue(it.weak && it.important); assertFalse(it.nailed) }
+    }
+
+    @Test fun undoOfANailRestoresImportantAndWeak() {
+        val old = Flag(important = true, weak = true)
+        val patch = FlagRules.diff(old, FlagRules.toggleNailed(old))
+        assertEquals(mapOf<String, Any?>("nailed" to true, "important" to false, "weak" to false), patch)
+        assertEquals(FlagRules.toggleNailed(old), FlagRules.apply(old, patch))
     }
 
     @Test fun emptyNoteBecomesNull() {
@@ -29,7 +42,7 @@ class FlagsTest {
     }
 
     @Test fun diffOnlyHasChangedColumns() {
-        val old = Flag(important = true)
+        val old = Flag(note = "x")
         val patch = FlagRules.diff(old, FlagRules.toggleNailed(old))
         assertEquals(mapOf<String, Any?>("nailed" to true), patch)
         assertEquals(FlagRules.toggleNailed(old), FlagRules.apply(old, patch))

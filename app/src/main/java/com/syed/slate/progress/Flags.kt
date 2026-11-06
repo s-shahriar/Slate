@@ -17,14 +17,17 @@ data class Flag(
 
 /** The web apps' rules, so a flag set on the phone means the same thing in the browser. */
 object FlagRules {
-    /** Nailing a question clears Weak. */
-    fun toggleNailed(f: Flag) = if (f.nailed) f.copy(nailed = false) else f.copy(nailed = true, weak = false)
+    // Nailed and Important/Weak never hold together: a question you have nailed is no longer one to revise, and one you
+    // mark to revise is no longer nailed. Each toggle clears the other side in the same write (and Undo restores it).
 
-    /** Un-marking Important also clears Weak. */
-    fun toggleImportant(f: Flag) = if (f.important) f.copy(important = false, weak = false) else f.copy(important = true)
+    /** Nailing a question clears Important and Weak. */
+    fun toggleNailed(f: Flag) = if (f.nailed) f.copy(nailed = false) else f.copy(nailed = true, important = false, weak = false)
 
-    /** Weak is a subset of Important. */
-    fun toggleWeak(f: Flag) = if (f.weak) f.copy(weak = false) else f.copy(weak = true, important = true)
+    /** Un-marking Important also clears Weak; marking it un-nails. */
+    fun toggleImportant(f: Flag) = if (f.important) f.copy(important = false, weak = false) else f.copy(important = true, nailed = false)
+
+    /** Weak is a subset of Important, and outside Nailed. */
+    fun toggleWeak(f: Flag) = if (f.weak) f.copy(weak = false) else f.copy(weak = true, important = true, nailed = false)
 
     /** An empty note is stored as null. */
     fun setNote(f: Flag, note: String?) = f.copy(note = note?.trim()?.ifEmpty { null })

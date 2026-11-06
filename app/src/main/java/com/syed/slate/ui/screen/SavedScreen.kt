@@ -124,6 +124,14 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
                     }
                 }
             }
+            // Nailed has the same per-topic clear-out as Important (the web's "Un-nail all").
+            if (kind == PoolSet.NAILED && topic != null && shownItems.isNotEmpty()) item {
+                HandMirror {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { confirmClear = true }) { Text("Un-nail all") }
+                    }
+                }
+            }
             if (shownItems.isEmpty()) item { Text("Nothing here yet.", Modifier.padding(24.dp), style = MaterialTheme.typography.bodyLarge) }
             val first = page.coerceAtMost(pages - 1) * PAGE
             itemsIndexed(shownItems.drop(first).take(PAGE), key = { _, item -> item.id }) { i, item ->
@@ -144,13 +152,18 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
         val clearing = shownItems
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("Remove all ${clearing.size} from Important?") },
-            text = { Text("They stay in the topic; only the Important and Weak marks are removed.") },
+            title = { Text(if (kind == PoolSet.NAILED) "Un-nail all ${clearing.size}?" else "Remove all ${clearing.size} from Important?") },
+            text = {
+                Text(if (kind == PoolSet.NAILED) "They go back into the topic's সব list; only the Nailed mark is removed."
+                else "They stay in the topic; only the Important and Weak marks are removed.")
+            },
             confirmButton = {
                 Button(onClick = {
-                    clearing.forEach { item -> item.uid?.let { uid -> m.progress.update(uid) { f -> f.copy(important = false, weak = false) } } }
+                    clearing.forEach { item ->
+                        item.uid?.let { uid -> m.progress.update(uid) { f -> if (kind == PoolSet.NAILED) f.copy(nailed = false) else f.copy(important = false, weak = false) } }
+                    }
                     confirmClear = false
-                }) { Text("Remove") }
+                }) { Text(if (kind == PoolSet.NAILED) "Un-nail" else "Remove") }
             },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
