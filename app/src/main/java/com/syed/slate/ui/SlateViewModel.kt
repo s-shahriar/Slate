@@ -91,7 +91,17 @@ class SlateViewModel(private val app: Application) : AndroidViewModel(app) {
         if (online.value) launch { m.blobs.refresh() }
         // A download that was cut short (app closed, connection lost) is topped up here.
         if (online.value) (m.content.state.value as? ContentState.Ready)?.let { m.prefetchImages(it.content) }
-        if (m.auth.session.value != null) { runCatching { m.progress.pull() }; runCatching { m.highlights.pull() } }
+        if (m.auth.session.value != null) {
+            // Say so when this fails: a silent failure left General's marks out of date on the phone (a query for a
+            // column its database lacked), with nothing on screen to show the numbers were old.
+            val marks = runCatching { m.progress.pull() }
+            val highlights = runCatching { m.highlights.pull() }
+            if (marks.isFailure || highlights.isFailure) {
+                if (online.value) com.syed.slate.ui.component.Notices.post(
+                    com.syed.slate.ui.component.Notice("${id.title}: Important/Nailed আনা যায়নি — পুরনো তথ্য দেখাচ্ছে", com.syed.slate.ui.component.Notice.Kind.ERROR),
+                )
+            }
+        }
     }
 
     val imagesSaved get() = slate.images.cachedCount
