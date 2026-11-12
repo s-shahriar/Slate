@@ -125,7 +125,8 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
                 }
             }
             // Nailed has the same per-topic clear-out as Important (the web's "Un-nail all").
-            if (kind == PoolSet.NAILED && topic != null && shownItems.isNotEmpty()) item {
+            // On "All topics" too (the view the list opens on), un-nailing everything shown in this section.
+            if (kind == PoolSet.NAILED && shownItems.isNotEmpty()) item {
                 HandMirror {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { confirmClear = true }) { Text("Un-nail all") }
