@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,6 +66,15 @@ object Notices {
     private val _list = MutableStateFlow(emptyList<Notice>())
     val list: StateFlow<List<Notice>> = _list
 
+    /** True while a screen with a bottom action bar (quiz / exam: Prev · Next) is shown: the pills go to the top. */
+    private var topHolders = 0
+    private val _atTop = MutableStateFlow(false)
+    val atTop: StateFlow<Boolean> = _atTop
+
+    /** From a screen whose bottom edge is taken (see [NoticesAtTop]); every call is paired with [releaseTop]. */
+    fun holdTop() = synchronized(this) { topHolders++; _atTop.value = true }
+    fun releaseTop() = synchronized(this) { topHolders = (topHolders - 1).coerceAtLeast(0); _atTop.value = topHolders > 0 }
+
     fun post(n: Notice) = synchronized(this) {
         val rest = _list.value.filter { n.group == null || it.group != n.group }
         _list.value = (rest + n).takeLast(2)
@@ -81,11 +92,15 @@ object Notices {
 @Composable
 fun NoticeHost(modifier: Modifier = Modifier) {
     val list by Notices.list.collectAsState()
-    Box(modifier.fillMaxSize().navigationBarsPadding().padding(bottom = 14.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.BottomCenter) {
+    val top by Notices.atTop.collectAsState()
+    val edge = if (top) Modifier.statusBarsPadding().padding(top = 8.dp, start = 16.dp, end = 16.dp)
+        else Modifier.navigationBarsPadding().padding(bottom = 14.dp, start = 16.dp, end = 16.dp)
+    val from = if (top) -1 else 1 // slide in from the edge they sit on
+    Box(modifier.fillMaxSize().then(edge), contentAlignment = if (top) Alignment.TopCenter else Alignment.BottomCenter) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             list.forEach { n ->
                 LaunchedEffect(n.id) { delay(n.durationMs); Notices.dismiss(n) }
-                AnimatedVisibility(remember(n.id) { MutableTransitionState(false).apply { targetState = true } }, enter = fadeIn() + slideInVertically { it / 2 }, exit = fadeOut() + slideOutVertically { it / 2 }) {
+                AnimatedVisibility(remember(n.id) { MutableTransitionState(false).apply { targetState = true } }, enter = fadeIn() + slideInVertically { from * it / 2 }, exit = fadeOut() + slideOutVertically { from * it / 2 }) {
                     NoticePill(n)
                 }
             }
@@ -122,4 +137,10 @@ private fun NoticePill(n: Notice) {
             )
         }
     }
+}
+
+/** While this is in the composition, notices show at the top of the screen instead of on a bottom action bar. */
+@Composable
+fun NoticesAtTop() {
+    DisposableEffect(Unit) { Notices.holdTop(); onDispose { Notices.releaseTop() } }
 }

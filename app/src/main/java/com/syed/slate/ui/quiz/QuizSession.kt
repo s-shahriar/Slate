@@ -101,6 +101,8 @@ fun QuizSession(
 ) {
     val p = LocalPalette.current
     val module = services.id
+    // Undo / sync pills would sit on the Prev · Next bar pinned to the bottom edge: show them at the top instead.
+    com.syed.slate.ui.component.NoticesAtTop()
     val flags by services.progress.flags.collectAsState()
     var idx by rememberSaveable { mutableIntStateOf(0) }
     // The option picked for each question (row id → letter). An answer never changes once given: going back shows
