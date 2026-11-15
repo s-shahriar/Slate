@@ -80,6 +80,28 @@ private fun buildPage(kind: PageKind, body: String, p: Palette, dark: Boolean, c
     }
 }
 
+/**
+ * On a page with Slate's own highlight bar, selecting text must not also raise Android's selection bubble (Copy /
+ * Translate / Share): the bubble sits over the text and its actions are not what a long-press here is for. The action
+ * mode still starts (it drives the selection handles), but with an empty menu, so no bubble is drawn.
+ */
+private class QuietSelectionWebView(context: Context) : WebView(context) {
+    override fun startActionMode(callback: android.view.ActionMode.Callback?, type: Int): android.view.ActionMode? =
+        super.startActionMode(callback?.let { Quiet(it) }, type)
+    override fun startActionMode(callback: android.view.ActionMode.Callback?): android.view.ActionMode? =
+        super.startActionMode(callback?.let { Quiet(it) })
+
+    private class Quiet(private val base: android.view.ActionMode.Callback) : android.view.ActionMode.Callback2() {
+        override fun onCreateActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean { base.onCreateActionMode(mode, menu); menu.clear(); return true }
+        override fun onPrepareActionMode(mode: android.view.ActionMode, menu: android.view.Menu): Boolean { base.onPrepareActionMode(mode, menu); menu.clear(); return true }
+        override fun onActionItemClicked(mode: android.view.ActionMode, item: android.view.MenuItem) = false
+        override fun onDestroyActionMode(mode: android.view.ActionMode) = base.onDestroyActionMode(mode)
+        override fun onGetContentRect(mode: android.view.ActionMode, view: android.view.View, outRect: android.graphics.Rect) {
+            if (base is android.view.ActionMode.Callback2) base.onGetContentRect(mode, view, outRect) else super.onGetContentRect(mode, view, outRect)
+        }
+    }
+}
+
 /** What the page can tell Slate. Called from the WebView's thread, so each hop to the UI thread is explicit. */
 private class Bridge(
     private val onToggle: () -> ((String) -> Unit),
@@ -155,7 +177,7 @@ fun FormulaPage(
     if (page != null) AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { c ->
-            WebView(c).apply {
+            (if (kind.highlights) QuietSelectionWebView(c) else WebView(c)).apply {
                 settings.javaScriptEnabled = true // only our own page, and only its controller script
                 settings.allowFileAccess = false; settings.allowContentAccess = false
                 settings.blockNetworkLoads = true; settings.domStorageEnabled = false
