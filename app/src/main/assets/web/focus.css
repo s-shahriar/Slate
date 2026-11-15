@@ -68,7 +68,7 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
 
 /* topic cards */
 .fc-content .card { background: var(--surface); border: 1px solid var(--border-md); border-left: 4px solid var(--fc); border-radius: 10px; padding: 10px 14px 4px; margin: 0 0 10px; box-shadow: var(--shadow-sm); }
-.fc-content .card h4 { margin: 0 0 6px; font-size: 15px; font-family: var(--font-display); }
+.fc-content .card h4 { margin: 0 0 6px; font-size: 15.5px; font-family: var(--font-body); font-weight: 700; color: var(--text); }
 .fc-content .card .r { margin: 0 0 7px; text-align: justify; }
 .fc-content .card .r b { color: var(--fc); font-size: 13px; }
 
@@ -98,6 +98,11 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
 .fc-content svg [fill="#e3f8fb"] { fill: var(--fc-tint); }
 .fc-content svg [fill="#fff0b3"] { fill: var(--warn-tint); }
 .fc-content svg [stroke="#6f8285"] { stroke: var(--text-3); }
+
+/* data memory tricks */
+.fc-content .dtrick { margin: 4px 0 16px; padding: 10px 14px; }
+.fc-content .dtrick ul { margin: 6px 0 0; }
+.fc-content .dtrick li { margin-bottom: 5px; }
 
 /* point bank */
 .fc-content .order { background: var(--warn-tint); border: 1px solid color-mix(in srgb, var(--accent-soft) 45%, transparent); border-radius: 10px; padding: 8px 14px; margin: 6px 0 12px; font-size: 14px; }
