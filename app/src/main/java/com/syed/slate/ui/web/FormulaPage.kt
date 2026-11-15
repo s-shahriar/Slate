@@ -37,7 +37,7 @@ enum class PageKind(val css: List<String>, val open: String, val close: String, 
     /** One SQL Lab lesson; sql.js switches between its versions. */
     SQL(listOf("sql.css"), """<div class="sl-root"><main class="sl-main">""", "</main></div>", highlights = true, script = "sql.js"),
     /** General » Written » Focus: one group of the focus-writing template (content_blobs written/focus). */
-    FOCUS(listOf("focus.css"), """<div class="fc-root fcw-page">""", "</div>"),
+    FOCUS(listOf("focus.css"), """<div class="fc-root fcw-page">""", "</div>", highlights = true, script = "focus.js"),
 }
 
 private fun hex(c: Color) = "#%06X".format(c.toArgb() and 0xFFFFFF)

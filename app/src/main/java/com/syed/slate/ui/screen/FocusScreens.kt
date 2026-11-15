@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Groups
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.syed.slate.backend.ModuleId
+import com.syed.slate.progress.FlagRules
 import com.syed.slate.content.BlobRepository
 import com.syed.slate.ui.SlateViewModel
 import com.syed.slate.ui.component.BarTitle
@@ -153,6 +156,11 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
     val dark = p.isDark
     val ground = focusGround()
     var switcher by remember { mutableStateOf(false) }
+    var importantOnly by remember { mutableStateOf(false) }
+    val m = vm.module(ModuleId.GENERAL)
+    val flags by m.progress.flags.collectAsState()
+    // Focus blocks are keyed "f<hash>" (lib/focusMarks.js on the web, focus.js here), apart from questions and math.
+    val important = remember(flags) { flags.filter { it.key.startsWith("f") && it.value.important }.keys }
     var target by remember { mutableStateOf<String?>(null) }
     var nonce by remember { mutableIntStateOf(0) }
     fun jump(to: String) { target = to; nonce++ }
@@ -163,7 +171,14 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
             SlateTopBar(
                 title = { BarTitle(tab?.let { if (it.n == 0) it.title else "গ্রুপ ${bn(it.n)}" } ?: "Focus", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = { if (tab != null) TopicSwitchButton { switcher = true } },
+                actions = {
+                    if (tab != null) {
+                        IconButton(onClick = { importantOnly = !importantOnly }) {
+                            Icon(if (importantOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, "Important only", tint = if (importantOnly) p.imp else androidx.compose.material3.LocalContentColor.current)
+                        }
+                        TopicSwitchButton { switcher = true }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = ground),
             )
         },
@@ -172,7 +187,7 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         val topicVar = if (tab.n == 0) "var(--accent)" else "var(--topic-${GROUP_TOPIC[tab.n]})"
         val body = remember(tab) {
             buildString {
-                append("""<div style="--fc:$topicVar"><header class="fc-head" id="fc-top"><h1 class="fc-title">${esc(tab.full)}</h1>""")
+                append("""<div style="--fc:$topicVar" data-gid="${tab.id}"><header class="fc-head" id="fc-top"><h1 class="fc-title">${esc(tab.full)}</h1>""")
                 if (tab.topics.isNotEmpty()) append("""<p class="fc-topics">${esc(tab.topics)}</p>""")
                 else append("""<p class="fc-topics">যেকোনো ফোকাসের ভূমিকা, উক্তি ও উপসংহারের সার্বজনীন ছাঁচ</p>""")
                 append("""<div class="fc-jumps">""")
@@ -180,11 +195,28 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
                 append("""</div></header><article class="fc-content">""").append(tab.html).append("</article></div>")
             }
         }
+        val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
+        val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
+        val onPage = remember(saved) { saved.filterKeys { it.startsWith("f") } }
+        val owner = remember { Any() }
+        var clearNonce by remember { mutableIntStateOf(0) }
         Box(Modifier.fillMaxSize().padding(pad)) {
             FormulaPage(
                 kind = PageKind.FOCUS, body = body, palette = p, dark = dark, cover = false,
+                importantOnly = importantOnly, important = important,
                 scrollTo = target, scrollNonce = nonce,
+                onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
+                highlights = onPage, clearSelectionNonce = clearNonce,
+                onSelection = { uid, anchors ->
+                    ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
+                    else com.syed.slate.ui.highlight.HlTarget.Add(owner, uid, anchors, anchors.joinToString(" ") { it.quote }) { clearNonce++ }
+                },
+                onMark = { _, ids, color -> ctl?.target = com.syed.slate.ui.highlight.HlTarget.Edit(owner, ids, color) { } },
             )
+            if (importantOnly && important.isEmpty()) Column(Modifier.fillMaxSize().background(ground).padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("এখনো কিছু Important হিসেবে সেভ করা হয়নি।", style = MaterialTheme.typography.titleMedium)
+                Text("যেকোনো বক্সের কোণার ⭐ বাটনে চাপ দিয়ে Important করো।", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium, color = p.text3)
+            }
         }
         if (switcher) TopicSwitcherSheet(
             title = "Focus",

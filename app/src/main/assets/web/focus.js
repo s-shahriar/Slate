@@ -1,0 +1,146 @@
+/* Written » Focus in Slate: tags the page exactly like the web (same uids), before controller.js / highlight.js start.
+   GENERATED from general-quiz src/lib/qid.js (normalizeQ, cyrb53, focusUidOfText), src/lib/mathHighlight.js
+   (tagMathBlocks) and src/lib/focusMarks.js (tagFocus) — regenerate rather than edit. */
+(function () {
+function normalizeQ(s) {
+  return (s ?? '')
+    .toString()
+    .normalize('NFC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+
+function cyrb53(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed
+  let h2 = 0x41c6ce57 ^ seed
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507)
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507)
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0)
+}
+
+
+function focusUidOfText(key) {
+  const norm = normalizeQ(key)
+  if (!norm) return null
+  return 'f' + cyrb53(norm).toString(36)
+}
+
+
+const SKIP = 'svg, button, .mf-tex'
+const FORMULA_KEY = /^f:/
+
+function ownText(el) {
+  for (const n of el.childNodes) if (n.nodeType === 3 && n.nodeValue.trim()) return true
+  return false
+}
+
+function texOf(el) {
+  return [...el.querySelectorAll('.mf-tex annotation[encoding="application/x-tex"]')].map(a => a.textContent).join(' ')
+}
+
+function tagMathBlocks(card, hash) {
+  card.querySelectorAll('[data-hl-block]').forEach(el => el.removeAttribute('data-hl-block'))
+  const seen = new Map()
+  const tag = (el, key) => {
+    const n = (seen.get(key) || 0) + 1
+    seen.set(key, n)
+    el.setAttribute('data-hl-block', n > 1 ? `${key}#${n}` : key)
+  }
+  const inBlock = (el) => !!el.parentElement?.closest('[data-hl-block]')
+  const all = [...card.querySelectorAll('*')]
+  // Document order puts every ancestor before its descendants, so "outermost" is simply the first one met.
+  for (const el of all) {
+    if (el.closest(SKIP) || inBlock(el) || !ownText(el)) continue
+    tag(el, 't:' + hash(el.textContent))
+  }
+  for (const el of all) {
+    if (el.closest(SKIP) && !el.matches('.mf-tex')) continue
+    if (el.parentElement?.closest('.mf-tex') || el.hasAttribute('data-hl-block') || inBlock(el)) continue
+    if (!el.querySelector('.mf-tex') && !el.matches('.mf-tex')) continue
+    // A diagram or button inside rules it out — but not KaTeX's own <svg> (square roots, long arrows).
+    if (el.querySelector('[data-hl-block], button') || [...el.querySelectorAll('svg')].some(s => !s.closest('.mf-tex'))) continue
+    const tex = el.matches('.mf-tex') ? el.querySelector('annotation[encoding="application/x-tex"]')?.textContent || el.textContent : texOf(el)
+    tag(el, 'f:' + hash(tex))
+  }
+}
+
+
+const UNIT = '.fix, .card, .sec, .q2, .chart, .box, .fc-tbl'
+const STAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+
+const kindOf = (el) => el.classList[0] || el.tagName.toLowerCase()
+const textKey = (el) => el.textContent.replace(/\s+/g, ' ').trim().slice(0, 120)
+
+/** Tags the article once: wraps tables, adds the star buttons, sets data-hl-root on every root. Returns the roots. */
+function tagFocus(article, gid, hash) {
+  if (article.__focusRoots) return article.__focusRoots
+  article.querySelectorAll('table').forEach(t => {
+    if (t.parentElement.closest('.fc-tbl, .box')) return
+    const w = document.createElement('div')
+    w.className = 'fc-tbl'
+    t.parentNode.insertBefore(w, t)
+    w.appendChild(t)
+  })
+  const seen = new Map()
+  const uidFor = (el) => {
+    const base = `${gid}::${kindOf(el)}::${textKey(el)}`
+    const n = (seen.get(base) || 0) + 1
+    seen.set(base, n)
+    return hash(n > 1 ? `${base}#${n}` : base)
+  }
+  const roots = []
+  const units = [...article.querySelectorAll(UNIT)].filter(u => !u.parentElement.closest(UNIT))
+  for (const u of units) {
+    const uid = uidFor(u)
+    if (!uid) continue
+    u.classList.add('fc-unit')
+    u.setAttribute('data-hl-root', uid)
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'fc-imp-btn'
+    b.setAttribute('data-fc-star', uid)
+    b.title = 'Important হিসেবে সেভ করুন'
+    b.innerHTML = STAR
+    u.appendChild(b)
+    roots.push(u)
+  }
+  for (const el of article.querySelectorAll('*')) {
+    if (el.closest('.fc-unit, svg, button') || el.querySelector('.fc-unit')) continue
+    if (roots.some(r => r.contains(el)) || !el.textContent.trim()) continue
+    const uid = uidFor(el)
+    if (!uid) continue
+    el.setAttribute('data-hl-root', uid)
+    roots.push(el)
+  }
+  article.__focusRoots = roots
+  return roots
+}
+
+
+  var article = document.querySelector('.fc-content');
+  var gid = (document.querySelector('[data-gid]') || {}).getAttribute ? document.querySelector('[data-gid]').getAttribute('data-gid') : '';
+  if (!article) return;
+  var roots = tagFocus(article, gid, focusUidOfText);
+  // controller.js stars '.mf-card[data-uid]' units and their ':scope > .mf-imp-btn'.
+  roots.forEach(function (r) {
+    tagMathBlocks(r, focusUidOfText);
+    if (r.classList.contains('fc-unit')) {
+      r.classList.add('mf-card');
+      r.setAttribute('data-uid', r.getAttribute('data-hl-root'));
+      var b = r.querySelector(':scope > .fc-imp-btn');
+      if (b) b.classList.add('mf-imp-btn');
+    }
+  });
+  var base = window.setImportantOnly;
+  window.setImportantOnly = function (on) { if (base) base(on); article.classList.toggle('fc-imp-only', !!on); };
+})();
