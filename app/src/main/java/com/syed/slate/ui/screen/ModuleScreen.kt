@@ -135,6 +135,7 @@ class ModuleNav(
     val onSql: (String) -> Unit = {},
     val onAdmin: () -> Unit = {},
     val onRoutine: () -> Unit = {},
+    val onFocus: () -> Unit = {},
 )
 
 /** Section keys that are not database groups. */
@@ -191,7 +192,7 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
                     val sel = selected
                     if (sel == null) SubModuleLauncher(id, s.content) { key ->
                         // General's Written is its own page; every other card opens in place.
-                        if (id == ModuleId.GENERAL && key == WRITTEN) nav.onWritten() else if (key == ROUTINE) nav.onRoutine() else selected = key
+                        if (key == ROUTINE) nav.onRoutine() else selected = key
                     } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId))
                 }
                 ContentState.Empty -> if (sync !is SyncState.Running) EmptyState(online) { vm.refreshContent(id) }
@@ -244,6 +245,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
     val section = selected
     val inVocab = id == ModuleId.GENERAL && section == "vocab"
     val inUtility = id == ModuleId.GENERAL && section == UTILITY
+    val inWritten = id == ModuleId.GENERAL && section == WRITTEN
     val inPractice = id == ModuleId.ICT && section == PRACTICE
     val inEquation = id == ModuleId.ICT && section == EQUATION
     val inSql = id == ModuleId.ICT && section == SQL
@@ -281,7 +283,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
     val scope = rememberCoroutineScope()
     LazyColumn(state = list, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // The section's hero: the sub-module card's icon coin, its name and size.
-        if (!inUtility) item(key = "section-hero") {
+        if (!inUtility && !inWritten) item(key = "section-hero") {
             val sectionCount = content.groups.firstOrNull { g -> g.key == section }?.count
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
@@ -296,7 +298,14 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 }
             }
         }
-        if (inUtility) {
+        if (inWritten) {
+            item(key = "written-data") {
+                UtilityCard("Data", "লিখিত পরীক্ষার তথ্য সংকলন", nav.onWritten, Modifier.fillMaxWidth())
+            }
+            item(key = "written-focus") {
+                UtilityCard("Focus", "ফোকাস রাইটিং — ৬ গ্রুপের ভূমিকা, উক্তি, উপসংহার ও পয়েন্ট ব্যাংক", nav.onFocus, Modifier.fillMaxWidth())
+            }
+        } else if (inUtility) {
             item(key = "tool-math") {
                 UtilityCard("গণিত সূত্র", "১২টি বিষয় — সম্পূর্ণ সূত্র সংকলন", nav.onMath, Modifier.fillMaxWidth())
             }

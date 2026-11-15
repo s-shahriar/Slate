@@ -1,0 +1,125 @@
+/* Written » Focus page for Slate: a copy of general-quiz src/components/written/WrittenFocus.css (content part).
+   Mirror changes there by hand. Colours come from the :root variables Slate injects (themeVariables). */
+.fc-root { --accent-soft: var(--accent); padding: 10px 12px 56px; }
+/* Written » Focus — the focus-writing template (content_blobs written/focus), drawn in the app's
+   Marigold palette. --fc is the active group's colour (a --topic-n), used for its accents. */
+
+/* Light mode: the Focus pages read on white like the printed PDF (the beige ground strains the eye on
+   long Bangla text). Dark mode keeps the app's dark palette. */
+html:not([data-theme="dark"]) {
+  --bg: #FFFFFF; --surface: #FFFFFF; --surface-glass: rgba(255, 255, 255, 0.97); --card: #FFFFFF;
+  --elevated: #F5F6F7; --card2: #F5F6F7; --hover-bg: rgba(0, 0, 0, 0.04);
+  --border: rgba(0, 0, 0, 0.08); --border-md: rgba(0, 0, 0, 0.12);
+  --text: #1A1A1A; --text-2: #333333; --text-3: #5F6368; --text-dim: #9AA0A6;
+  background: #FFFFFF;
+}
+html:not([data-theme="dark"]) .fcw-page .fc-head,
+html:not([data-theme="dark"]) .fcw-page .fc-content .fix,
+html:not([data-theme="dark"]) .fcw-page .fc-content .card,
+html:not([data-theme="dark"]) .fcw-page .fc-content .sec,
+html:not([data-theme="dark"]) .fcw-page .fc-content .chart,
+html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
+
+.fc-root { --fc: var(--accent); --fc-tint: color-mix(in srgb, var(--fc) 12%, transparent); }
+
+.fc-head { margin: 10px 0 18px; padding: 16px 18px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border-md); border-top: 4px solid var(--fc); box-shadow: var(--shadow-sm); }
+.fc-title { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.45; margin: 0 0 4px; color: var(--text); }
+.fc-topics { margin: 0 0 10px; color: var(--text-3); font-size: 13px; line-height: 1.6; }
+.fc-jumps { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-jump {
+  padding: 4px 11px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--fc) 35%, transparent);
+  background: var(--fc-tint); color: var(--fc); font-size: 12px; font-family: var(--font-body); cursor: pointer;
+}
+.fc-jump:hover { background: color-mix(in srgb, var(--fc) 22%, transparent); }
+
+/* ── Content (HTML from the template) ───────── */
+.fc-content { font-family: var(--font-body); color: var(--text); font-size: 15px; line-height: 1.8; }
+.fc-content [id], .fc-head { scroll-margin-top: 8px; }
+.fc-content p { margin: 0 0 10px; }
+.fc-content h2 { font-family: var(--font-display); font-size: 1.08rem; margin: 26px 0 10px; }
+.fc-content h2 span { background: var(--fc-tint); color: var(--fc); padding: 2px 10px; border-radius: 6px; }
+.fc-content .lbl {
+  font-family: var(--font-body); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--fc); margin: 26px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-md);
+}
+.fc-content .note { font-size: 13px; color: var(--text-3); }
+.fc-content .s { background: var(--warn-tint); border-bottom: 2px solid var(--accent-soft); padding: 0 4px; border-radius: 3px; color: var(--text); white-space: nowrap; }
+.fc-content b.k { background: linear-gradient(transparent 58%, color-mix(in srgb, var(--accent-soft) 35%, transparent) 58%); }
+.fc-content .star { color: var(--accent-soft); font-weight: 700; }
+
+.fc-content .fix {
+  background: var(--surface); border: 1px solid var(--border-md); border-left: 4px solid var(--fc);
+  border-radius: 10px; padding: 12px 16px; margin: 6px 0 14px; text-align: justify; line-height: 1.95; box-shadow: var(--shadow-sm);
+}
+.fc-content .box { border: 1.5px dashed color-mix(in srgb, var(--fc) 50%, transparent); border-radius: 10px; padding: 10px 14px; margin: 10px 0 14px; background: var(--surface); }
+
+/* tables */
+.fc-content table { border-collapse: collapse; width: 100%; margin: 6px 0 12px; font-size: 13.5px; background: var(--surface); border-radius: 8px; overflow: hidden; }
+.fc-content th, .fc-content td { border: 1px solid var(--border-md); padding: 6px 10px; vertical-align: top; text-align: left; }
+.fc-content th { background: var(--elevated); color: var(--text-2); font-weight: 700; }
+.fc-content .steps td:first-child, .fc-content .dt td:first-child, .fc-content .ex td:first-child { white-space: nowrap; font-weight: 700; color: var(--text-2); }
+.fc-content .dt td:nth-child(3), .fc-content .dt td:nth-child(4) { font-size: 12px; color: var(--text-3); }
+
+/* quotes */
+.fc-content .q2 { margin: 0 0 10px; padding: 10px 14px; background: var(--surface); border-left: 4px solid var(--accent-soft); border-radius: 0 10px 10px 0; box-shadow: var(--shadow-sm); }
+.fc-content .q2 .en { display: block; color: var(--text-3); font-size: 13px; font-style: italic; margin-top: 3px; }
+.fc-content .q2 .who { display: block; text-align: right; font-weight: 700; font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.fc-content .q2 .who i { color: var(--fc); font-weight: 600; }
+
+/* topic cards */
+.fc-content .card { background: var(--surface); border: 1px solid var(--border-md); border-left: 4px solid var(--fc); border-radius: 10px; padding: 10px 14px 4px; margin: 0 0 10px; box-shadow: var(--shadow-sm); }
+.fc-content .card h4 { margin: 0 0 6px; font-size: 15px; font-family: var(--font-display); }
+.fc-content .card .r { margin: 0 0 7px; text-align: justify; }
+.fc-content .card .r b { color: var(--fc); font-size: 13px; }
+
+/* charts */
+.fc-content .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0 14px; }
+.fc-content .chart { background: var(--surface); border: 1px solid var(--border-md); border-radius: 10px; padding: 10px 12px 8px; box-shadow: var(--shadow-sm); }
+.fc-content .ct { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+.fc-content .cn { font-size: 12px; color: var(--fc); line-height: 1.5; margin-top: 4px; }
+.fc-content .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.fc-content .sc { border: 1.5px solid var(--fc); border-radius: 8px; text-align: center; padding: 12px 4px; }
+.fc-content .sc b { display: block; font-size: 1.3rem; color: var(--fc); }
+.fc-content .sc span { font-size: 12px; color: var(--text-3); }
+.fc-content svg text { font-family: var(--font-body); }
+/* recolour the print palette to the app's */
+.fc-content svg [fill="#19b4cc"], .fc-content svg [fill="#0b6f80"] { fill: var(--fc); }
+.fc-content svg [stroke="#19b4cc"] { stroke: var(--fc); }
+.fc-content svg [fill="#e2a800"] { fill: var(--accent-soft); }
+.fc-content svg [stroke="#e2a800"] { stroke: var(--accent-soft); }
+.fc-content svg [stroke="#9aa5a8"] { stroke: var(--text-dim); }
+.fc-content svg [fill="#1a1a1a"] { fill: var(--text); }
+.fc-content svg [stroke="#1a1a1a"] { stroke: var(--text-2); }
+.fc-content svg [fill="#555"], .fc-content svg [fill="#444"] { fill: var(--text-3); }
+.fc-content svg [fill="#7fd3e0"] { fill: color-mix(in srgb, var(--fc) 55%, var(--surface)); }
+.fc-content svg [fill="#f2d27a"] { fill: color-mix(in srgb, var(--accent-soft) 55%, var(--surface)); }
+.fc-content svg [fill="#c6ccce"] { fill: var(--text-dim); }
+.fc-content svg [stroke="#fff"] { stroke: var(--surface); }
+.fc-content svg [fill="#e3f8fb"] { fill: var(--fc-tint); }
+.fc-content svg [fill="#fff0b3"] { fill: var(--warn-tint); }
+.fc-content svg [stroke="#6f8285"] { stroke: var(--text-3); }
+
+/* point bank */
+.fc-content .order { background: var(--warn-tint); border: 1px solid color-mix(in srgb, var(--accent-soft) 45%, transparent); border-radius: 10px; padding: 8px 14px; margin: 6px 0 12px; font-size: 14px; }
+.fc-content .sec { background: var(--surface); border: 1px solid var(--border-md); border-radius: 12px; padding: 10px 14px 6px; margin: 0 0 12px; box-shadow: var(--shadow-sm); }
+.fc-content .sech { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--fc); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.fc-content .mn { background: var(--fc); color: var(--surface); border-radius: 6px; padding: 1px 9px; font-size: 13px; letter-spacing: .04em; }
+.fc-content .trick { background: var(--warn-tint); border-left: 4px solid var(--accent-soft); border-radius: 0 8px 8px 0; padding: 6px 12px; margin: 8px 0; font-size: 13.5px; }
+.fc-content .trick.big2 { font-size: 15px; text-align: center; }
+.fc-content ul.pts { list-style: none; padding: 0; margin: 4px 0; }
+.fc-content ul.pts li { position: relative; padding-left: 52px; margin: 0 0 7px; font-size: 14px; line-height: 1.65; }
+.fc-content .ltr { position: absolute; left: 0; top: 3px; width: 44px; text-align: center; background: var(--fc); color: var(--surface); border-radius: 6px; font-size: 12px; padding: 1px 0; }
+.fc-content .tg { font-size: 11px; color: var(--fc); opacity: .85; }
+.fc-content ul.tick, .fc-content ul.arrow { list-style: none; padding-left: 4px; margin: 6px 0 12px; }
+.fc-content ul.tick li, .fc-content ul.arrow li { position: relative; padding-left: 24px; margin-bottom: 6px; }
+.fc-content ul.tick li::before { content: "✓"; position: absolute; left: 3px; color: var(--fc); font-weight: 700; }
+.fc-content ul.arrow li::before { content: "⇒"; position: absolute; left: 0; color: var(--fc); font-weight: 700; }
+
+@media (max-width: 720px) {
+  .fc-content { font-size: 14.5px; }
+  .fc-content .cg { grid-template-columns: 1fr; }
+  .fc-content table { display: block; overflow-x: auto; }
+  .fc-content .steps td:first-child, .fc-content .dt td:first-child, .fc-content .ex td:first-child { white-space: normal; min-width: 84px; }
+  .fc-title { font-size: 1.15rem; }
+  .fc-content .fix, .fc-content .card .r { text-align: left; }
+}
