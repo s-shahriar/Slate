@@ -45,6 +45,13 @@ js = ('/* Written » Focus in Slate: tags the page exactly like the web (same ui
       if (b) b.classList.add('mf-imp-btn');
     }
   });
+  // A topic link on a group page opens that topic's page (Slate navigates on "topic:<group>/<id>").
+  article.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-topic]');
+    if (!a || !window.Slate || !window.Slate.onSection) return;
+    e.preventDefault(); e.stopPropagation();
+    window.Slate.onSection('topic:' + a.getAttribute('data-topic'));
+  }, true);
   var base = window.setImportantOnly;
   window.setImportantOnly = function (on) { if (base) base(on); article.classList.toggle('fc-imp-only', !!on); };
 })();

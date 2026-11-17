@@ -243,7 +243,12 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
             Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusHomeScreen(vm, onBack = { nav.popBackStack() }, onOpen = { g -> nav.navigate("focus/$g") }) }
         }
         composable("focus/{g}") { e ->
-            Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.replace("focus/$g") }) }
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.replace("focus/$g") }, onOpenTopic = { t -> nav.navigate("focus/$t") }) }
+        }
+        composable("focus/{g}/{t}") { e ->
+            Themed(Scope.GENERAL, ModuleId.GENERAL) {
+                FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.navigate("focus/$g") { popUpTo("focus/{g}/{t}") { inclusive = true } } }, topicId = e.arg("t"), onOpenTopic = { t -> nav.replace("focus/$t") })
+            }
         }
         composable("written/{m}") { e ->
             Themed(e.module().scope()) { WrittenDataScreen(vm, onBack = { nav.popBackStack() }) }

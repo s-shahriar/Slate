@@ -63,8 +63,8 @@ import com.syed.slate.ui.web.FormulaPage
 import com.syed.slate.ui.web.PageKind
 
 /** One tab of Written » Focus: the universal template ("u") or a group ("g1".."g6"). */
-class FocusTab(val id: String, val n: Int, val title: String, val topics: String, val html: String, val sections: List<Pair<String, String>>) {
-    val full get() = if (n == 0) title else "গ্রুপ ${bn(n)}: $title"
+class FocusTab(val id: String, val n: Int, val title: String, val topics: String, val html: String, val sections: List<Pair<String, String>>, val topic: Boolean = false) {
+    val full get() = if (n == 0 || topic) title else "গ্রুপ ${bn(n)}: $title"
 }
 
 private fun bn(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪৫৬৭৮৯"[it - '0'] else it }.joinToString("")
@@ -82,6 +82,21 @@ object FocusIndex {
         val g = p.getJSONArray("groups")
         return listOf(FocusTab("u", 0, u.getString("title"), "", u.getString("html"), secs(u))) +
             List(g.length()) { i -> g.getJSONObject(i).let { o -> FocusTab(o.getString("id"), o.getInt("n"), o.getString("title"), o.getString("topics"), o.getString("html"), secs(o)) } }
+    }
+
+    /** A topic page under group [group] (content/focus/topics on the web), shown like a group but titled by the topic. */
+    fun topic(blobs: BlobRepository, group: String, id: String): FocusTab? {
+        val p = blobs.payload("written", "focus") ?: return null
+        val a = p.optJSONArray("topics") ?: return null
+        val g = tabs(blobs).firstOrNull { it.id == group } ?: return null
+        for (i in 0 until a.length()) {
+            val o = a.getJSONObject(i)
+            if (o.getString("id") == id && o.getString("group") == group) {
+                val secs = o.getJSONArray("sections").let { x -> List(x.length()) { x.getJSONObject(it).let { s -> s.getString("id") to s.getString("label") } } }
+                return FocusTab("$group/$id", g.n, o.getString("title"), g.full, o.getString("html"), secs, topic = true)
+            }
+        }
+        return null
     }
 }
 
@@ -147,11 +162,12 @@ private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replac
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitch: (String) -> Unit) {
+fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitch: (String) -> Unit, topicId: String? = null, onOpenTopic: (String) -> Unit = {}) {
     val blobs = vm.module(ModuleId.GENERAL).blobs
     val ver by blobs.version.collectAsState()
     val tabs = remember(ver) { FocusIndex.tabs(blobs) }
-    val tab = tabs.firstOrNull { it.id == id } ?: tabs.firstOrNull()
+    val group = tabs.firstOrNull { it.id == id } ?: tabs.firstOrNull()
+    val tab = if (topicId != null) remember(ver, id, topicId) { FocusIndex.topic(blobs, id, topicId) } ?: group else group
     val p = LocalPalette.current
     val dark = p.isDark
     val ground = focusGround()
@@ -169,7 +185,7 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         containerColor = ground,
         topBar = {
             SlateTopBar(
-                title = { BarTitle(tab?.let { if (it.n == 0) it.title else "গ্রুপ ${bn(it.n)}" } ?: "Focus", style = MaterialTheme.typography.titleLarge) },
+                title = { BarTitle(tab?.let { if (it.n == 0 || it.topic) it.title else "গ্রুপ ${bn(it.n)}" } ?: "Focus", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     if (tab != null) {
@@ -206,6 +222,8 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
                 importantOnly = importantOnly, important = important,
                 scrollTo = target, scrollNonce = nonce,
                 onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
+                // focus.js reports a tap on a topic link as "topic:<group>/<id>".
+                onSection = { s -> if (s.startsWith("topic:")) onOpenTopic(s.removePrefix("topic:")) },
                 highlights = onPage, clearSelectionNonce = clearNonce,
                 onSelection = { uid, anchors ->
                     ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }
@@ -221,7 +239,7 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         if (switcher) TopicSwitcherSheet(
             title = "Focus",
             topics = tabs.map { SwitchEntry(it.id, it.title) },
-            current = tab.id,
+            current = group?.id ?: tab.id,
             onTopic = { switcher = false; onSwitch(it) },
             onDismiss = { switcher = false },
             subtopics = tab.sections.map { (sid, label) -> SwitchEntry(sid, label) },
