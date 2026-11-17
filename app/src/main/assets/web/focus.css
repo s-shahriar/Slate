@@ -99,6 +99,12 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
 .fc-content svg [fill="#fff0b3"] { fill: var(--warn-tint); }
 .fc-content svg [stroke="#6f8285"] { stroke: var(--text-3); }
 
+/* topic extras: one bullet per point */
+.fc-content ul.xp { margin: 0; padding-left: 18px; list-style: disc outside; }
+.fc-content ul.xp li { margin: 0 0 5px; line-height: 1.6; }
+.fc-content ul.xp li::marker { color: var(--fc); }
+.fc-content ul.xp b { color: var(--text-2); }
+
 /* data memory tricks */
 .fc-content .dtrick { margin: 4px 0 16px; padding: 10px 14px; }
 .fc-content .dtrick ul { margin: 6px 0 0; }
