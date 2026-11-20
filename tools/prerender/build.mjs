@@ -6,6 +6,7 @@
 // Needs the two web projects checked out next to Slate (GENERAL_QUIZ / ICT_QUIZ override the paths), Node, Google Chrome,
 // and each web project's SUPABASE_SERVICE_ROLE_KEY in its .env.local. Rows go to `content_blobs` (kind `web`):
 //   general / web/math               { sections, html }
+//   general / web/english            { sections, html }
 //   ict     / web/equation_<topic>   { id, groups, equations, html }
 // Static support files (KaTeX css + fonts, the page stylesheets and scripts) are code, not content: they are still written to
 // app/src/main/assets/web and ship with the app.
@@ -117,6 +118,40 @@ async function math() {
   const extras = (body.match(/data-hl-root="/g) || []).length - cards
   const blocks = (body.match(/data-hl-block="/g) || []).length
   console.log(`math: ${mod.sections.length} sections, ${cards} markable cards + ${extras} other highlight roots, ${blocks} highlight blocks, ${(body.length / 1024).toFixed(0)} KB`)
+}
+
+// ── English notes (general-quiz) ─────────────────────────────────────────────
+// The web renders content_blobs utility/english with EnglishSections.jsx; render that same component over the same data
+// (the repo's source file, which sync-static.mjs uploads) and tag the cards with the web's 'e' uids.
+async function english() {
+  const entry = `
+    import { renderToStaticMarkup } from 'react-dom/server'
+    import EnglishSections from '${GQ}/src/components/utility/english/EnglishSections.jsx'
+    import { EN_SECTIONS } from '${GQ}/src/data/utility/englishData.js'
+    export const sections = EN_SECTIONS.map(({ id, label, icon, color }) => ({ id, label, icon, color }))
+    export const html = renderToStaticMarkup(<EnglishSections sections={EN_SECTIONS} />)
+  `
+  const mod = await run(entry, GQ, [
+    [/ImportantContext\.jsx$/, `export const useImportantContext = () => ({ value: new Set(), add() {}, remove() {}, toggle() {} })`],
+  ])
+  const qid = fs.readFileSync(`${GQ}/src/lib/qid.js`, 'utf8').replace(/export /g, '')
+  const mhl = fs.readFileSync(`${GQ}/src/lib/mathHighlight.js`, 'utf8').replace(/export /g, '')
+  const body = inChrome(mod.html, `${qid}\n${mhl}
+    document.querySelectorAll('.mf-card').forEach(function (card) {
+      if (!card.querySelector(':scope > .mf-imp-btn')) return;
+      var sectionId = (card.closest('.mf-section') || {}).id || '';
+      var t = card.querySelector('.mf-card-title');
+      var uid = englishUidOfText(sectionId + '::' + ((t && t.textContent) || card.textContent || ''));
+      card.setAttribute('data-uid', uid);
+      card.setAttribute('data-hl-root', uid);
+      tagMathBlocks(card, englishUidOfText);
+    });
+    tagMathExtras(document.getElementById('root'), englishUidOfText);`)
+  rows.general.push({ kind: 'web', key: 'english', sort_order: 0, payload: { sections: mod.sections, html: body } })
+  // Not adapted for the app (colours come from the injected palette), so always refreshed from the web.
+  fs.copyFileSync(`${GQ}/src/components/utility/english/EnglishNotes.css`, `${OUT}/web/english.css`)
+  const cards = (body.match(/data-uid="/g) || []).length
+  console.log(`english: ${mod.sections.length} sections, ${cards} markable cards, ${(body.match(/data-hl-block="/g) || []).length} highlight blocks, ${(body.length / 1024).toFixed(0)} KB`)
 }
 
 // ── Equations (ict-quiz) ─────────────────────────────────────────────────────
@@ -345,6 +380,6 @@ function katex() {
 }
 
 try {
-  await math(); await equations(); await sqlLab(); katex(); highlightScript()
+  await math(); await english(); await equations(); await sqlLab(); katex(); highlightScript()
   await publish('general', GQ); await publish('ict', IQ)
 } finally { fs.rmSync(TMP, { recursive: true, force: true }) }

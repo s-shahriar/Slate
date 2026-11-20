@@ -18,8 +18,8 @@ android {
         applicationId = "com.syed.slate"
         minSdk = 31
         targetSdk = 36
-        versionCode = 56
-        versionName = "0.8.20"
+        versionCode = 57
+        versionName = "0.8.21"
         // Web client IDs of the Google OAuth clients behind each Supabase project.
         // Empty until set in local.properties; sign-in is simply disabled then.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID_GENERAL", "\"${localProps.getProperty("GOOGLE_WEB_CLIENT_ID_GENERAL", "")}\"")

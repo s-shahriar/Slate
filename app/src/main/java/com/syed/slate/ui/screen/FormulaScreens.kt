@@ -68,6 +68,9 @@ class EquationTopic(val id: String, val groups: List<EquationGroup>, val equatio
 object FormulaIndex {
     fun mathPage(blobs: BlobRepository): JSONObject? = blobs.payload("web", "math")
 
+    /** Utility » English: the web's EnglishSections rendered by the prerender (same { sections, html } shape as math). */
+    fun englishPage(blobs: BlobRepository): JSONObject? = blobs.payload("web", "english")
+
     fun mathSections(page: JSONObject): List<MathSection> =
         page.getJSONArray("sections").let { a ->
             List(a.length()) { a.getJSONObject(it).let { o -> MathSection(o.getString("id"), o.getString("label"), o.optString("icon"), o.optString("color")) } }
@@ -111,29 +114,42 @@ fun MathFormulasScreen(vm: SlateViewModel, onBack: () -> Unit) {
     if (page == null) NotDownloaded("গণিত সূত্র সংকলন", onBack) else MathFormulasContent(vm, page, onBack)
 }
 
+/** General » Utility » English Grammar: the math page's layout (sections, cards with stars, highlights), no cover mode. */
+@Composable
+fun EnglishNotesScreen(vm: SlateViewModel, onBack: () -> Unit) {
+    val blobs = vm.module(ModuleId.GENERAL).blobs
+    val ver by blobs.version.collectAsState()
+    val page = remember(ver) { FormulaIndex.englishPage(blobs) }
+    if (page == null) NotDownloaded("English Grammar", onBack)
+    else MathFormulasContent(vm, page, onBack, kind = PageKind.ENGLISH, title = "English Grammar", prefix = "e", coverable = false)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: () -> Unit) {
+private fun MathFormulasContent(
+    vm: SlateViewModel, page: JSONObject, onBack: () -> Unit,
+    kind: PageKind = PageKind.MATH, title: String = "গণিত সূত্র সংকলন", prefix: String = "m", coverable: Boolean = true,
+) {
     val m = vm.module(ModuleId.GENERAL)
     val flags by m.progress.flags.collectAsState()
     val p = LocalPalette.current
     val sections = remember(page) { FormulaIndex.mathSections(page) }
-    var cover by remember { mutableStateOf(vm.boolPref("mf-cover")) }
+    var cover by remember { mutableStateOf(coverable && vm.boolPref("mf-cover")) }
     var importantOnly by remember { mutableStateOf(false) }
     var active by remember { mutableStateOf(sections.first().id) }
     var target by remember { mutableStateOf<String?>(null) }
     var nonce by remember { mutableIntStateOf(0) }
-    // Math cards are keyed "m<hash>"; question uids start with "q", so the prefix keeps the two apart.
-    val important = remember(flags) { flags.filter { it.key.startsWith("m") && it.value.important }.keys }
+    // Math cards are keyed "m<hash>", English cards "e<hash>"; question uids start with "q", so the prefix keeps them apart.
+    val important = remember(flags) { flags.filter { it.key.startsWith(prefix) && it.value.important }.keys }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SlateTopBar(
-                title = { BarTitle("গণিত সূত্র সংকলন", style = MaterialTheme.typography.titleLarge) },
+                title = { BarTitle(title, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
-                    IconButton(onClick = { cover = !cover; vm.setBoolPref("mf-cover", cover) }) {
+                    if (coverable) IconButton(onClick = { cover = !cover; vm.setBoolPref("mf-cover", cover) }) {
                         Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, if (cover) "Show formulas" else "Cover formulas")
                     }
                     IconButton(onClick = { importantOnly = !importantOnly }) {
@@ -151,15 +167,15 @@ private fun MathFormulasContent(vm: SlateViewModel, page: JSONObject, onBack: ()
                 active, { target = it; active = it; nonce++ },
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
-            // Highlights: each card is a root (its "m" uid), blocks tagged by the web's own code (lib/mathHighlight.js).
+            // Highlights: each card is a root (its prefixed uid), blocks tagged by the web's own code (lib/mathHighlight.js).
             val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
             val saved by (ctl?.repo?.byUid ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, List<com.syed.slate.highlight.Highlight>>()) }).collectAsState()
-            val onPage = remember(saved) { saved.filterKeys { it.startsWith("m") } }
+            val onPage = remember(saved) { saved.filterKeys { it.startsWith(prefix) } }
             val owner = remember { Any() }
             var clearNonce by remember { mutableIntStateOf(0) }
             Box(Modifier.fillMaxSize()) {
                 FormulaPage(
-                    PageKind.MATH, page.getString("html"), p, p.isDark, cover,
+                    kind, page.getString("html"), p, p.isDark, cover,
                     importantOnly = importantOnly, important = important, scrollTo = target, scrollNonce = nonce,
                     onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
                     onSection = { active = it },

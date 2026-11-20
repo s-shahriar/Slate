@@ -136,6 +136,7 @@ class ModuleNav(
     val onAdmin: () -> Unit = {},
     val onRoutine: () -> Unit = {},
     val onFocus: () -> Unit = {},
+    val onEnglish: () -> Unit = {},
 )
 
 /** Section keys that are not database groups. */
@@ -311,6 +312,9 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
             item(key = "tool-finance") {
                 UtilityCard("ফিন্যান্সিয়াল টার্ম", "Important terms at a glance", nav.onFinance, Modifier.fillMaxWidth())
+            }
+            item(key = "tool-english") {
+                UtilityCard("English Grammar", "নিয়ম, উদাহরণ ও রূপান্তর", nav.onEnglish, Modifier.fillMaxWidth())
             }
         } else if (inPractice) {
             item(key = "practice-actions") {

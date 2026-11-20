@@ -47,6 +47,7 @@ import com.syed.slate.ui.screen.SqlLessonScreen
 import com.syed.slate.ui.screen.FinancialTermsScreen
 import com.syed.slate.ui.screen.HomeScreen
 import com.syed.slate.ui.screen.MathFormulasScreen
+import com.syed.slate.ui.screen.EnglishNotesScreen
 import com.syed.slate.ui.screen.ModeSelectScreen
 import com.syed.slate.ui.screen.ModuleNav
 import com.syed.slate.ui.screen.ModuleScreen
@@ -149,6 +150,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onPracticeImportant = { nav.navigate("practiceimp") },
                         onMath = { nav.navigate("math") },
                         onFinance = { nav.navigate("finance") },
+                        onEnglish = { nav.navigate("english") },
                         onEquation = { t -> nav.navigate("equation/$t") },
                         onEquationImportant = { nav.navigate("equation_important") },
                         onSql = { l -> nav.navigate("sql/$l") },
@@ -223,6 +225,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         composable("routine/{m}") { e -> val id = e.module(); Themed(id.scope(), id) { RoutineScreen(vm, id, onBack = { nav.popBackStack() }) } }
         composable("bin/{m}") { e -> val id = e.module(); Themed(id.scope(), id) { BinScreen(vm, id, onBack = { nav.popBackStack() }) } }
         composable("math") { Themed(Scope.GENERAL, ModuleId.GENERAL) { MathFormulasScreen(vm, onBack = { nav.popBackStack() }) } }
+        composable("english") { Themed(Scope.GENERAL, ModuleId.GENERAL) { EnglishNotesScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("admin") { Themed(Scope.GENERAL, ModuleId.GENERAL) { AdminScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("finance") { Themed(Scope.GENERAL) { FinancialTermsScreen(onBack = { nav.popBackStack() }) } }
         composable("equation/{t}") { e -> Themed(Scope.ICT, ModuleId.ICT) { EquationScreen(vm, e.arg("t"), onBack = { nav.popBackStack() }, onSwitchTopic = { nt -> nav.replace("equation/$nt") }) } }

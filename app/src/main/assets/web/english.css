@@ -1,0 +1,142 @@
+/* Utility » English — on top of MathFormulas.css (same cards, tiles, Important stars). Colours come only from the
+   theme tokens (--accent, --text*, --mf-*), so Slate's injected palette restyles it too: this file is copied to Slate's
+   assets/web/english.css by the prerender. */
+
+.en-root .mf-wrap { max-width: 1200px; }
+.en-error { color: var(--text-3); text-align: center; margin: 40px 0; }
+.en-sec-icon { font-size: 15px; font-weight: 800; color: var(--mf-gold2); white-space: nowrap; }
+.en-root .mf-sec-tile-icon { font-size: 14px; white-space: nowrap; }
+
+.en-card-body { font-size: 14px; line-height: 1.6; color: var(--text-2); }
+.en-card-body > * + * { margin-top: 8px; }
+.en-p { margin: 0; }
+
+/* Notebook marks: a soft marker stroke in the theme colour (not a loud yellow), and an outlined key word. */
+.en-hl {
+  color: var(--text);
+  font-weight: 600;
+  background: linear-gradient(transparent 52%, color-mix(in srgb, var(--accent) 24%, transparent) 52%);
+  border-radius: 2px;
+  padding: 0 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.en-key {
+  color: var(--text);
+  font-weight: 600;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 999px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+/* On a dark card a half-height stroke at low alpha disappears: fill the whole word with a warmer tint, tint the text
+   with the accent and underline it, so a mark reads at a glance without glaring. */
+[data-theme="dark"] .en-hl {
+  color: color-mix(in srgb, var(--accent) 55%, var(--text));
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 75%, transparent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+[data-theme="dark"] .en-key {
+  color: color-mix(in srgb, var(--accent) 55%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.en-ok { color: var(--mf-teal); font-weight: 800; }
+.en-no { color: var(--mf-rose); font-weight: 800; }
+
+/* Rules: the math page's numbered identity rows, with examples under each rule. */
+.en-rules .mf-id-item { padding: 6px 0; gap: 10px; }
+.en-rules .mf-id-text { font-size: 14px; line-height: 1.6; flex: 1; min-width: 0; }
+.en-rules .mf-id-num { width: 20px; height: 20px; font-size: 11px; margin-top: 1px; }
+.en-rule { color: var(--text); }
+.en-ex {
+  margin-top: 2px;
+  padding: 1px 0 1px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--text-2);
+  font-style: italic;
+}
+.en-ex .en-hl, .en-ex .en-key { font-style: normal; }
+
+/* Tables: word tables must fit a phone, so no 400px floor. */
+.en-table-wrap { overflow-x: auto; }
+.mf-cmp-table.en-table { min-width: 0; font-size: 14px; }
+.en-table td { line-height: 1.6; }
+.en-table td:first-child { color: var(--text); font-weight: 600; }
+
+/* Word lists as chips, one column per heading. */
+.en-words { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px 18px; }
+.en-words-h {
+  font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--mf-gold); margin-bottom: 6px;
+}
+.en-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.en-chip {
+  font-size: 13px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.en-chip .en-key { border: none; background: none; padding: 0; }
+.en-chip:has(.en-key) {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+/* Transformations (voice, narration, conversions): from → to on one row, stacked only when the card is narrow. */
+.en-pairs-label {
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--mf-gold); margin: 2px 0 2px;
+}
+.en-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1.15fr);
+  align-items: baseline;
+  gap: 0 6px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.en-pair:last-child { border-bottom: none; }
+.en-from { color: var(--text-3); }
+.en-to { color: var(--text); }
+.en-arrow { color: var(--mf-gold); text-align: center; }
+.en-pairs.short { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.en-pairs.short .en-pairs-label { grid-column: 1 / -1; }
+.en-pairs.short .en-pair {
+  grid-template-columns: auto auto 1fr; border: 1px solid var(--border); border-radius: 10px;
+  padding: 5px 10px; background: var(--elevated);
+}
+.en-pairs.short .en-from { color: var(--text-2); font-weight: 600; }
+@container en-card (max-width: 360px) {
+  .en-pairs:not(.short) .en-pair { grid-template-columns: 18px minmax(0, 1fr); }
+  .en-pairs:not(.short) .en-from { grid-column: 1 / -1; }
+}
+
+/* Revision density: tighter than the math page, which needs room for formulas. */
+.en-root .mf-card { padding: 16px 16px 14px; container: en-card / inline-size; }
+.en-root .mf-card-title { margin-bottom: 6px; padding-right: 34px; font-size: 15px; }
+.en-root .mf-section { margin-bottom: 34px; }
+.en-root .mf-sec-header { margin-bottom: 14px; padding-bottom: 8px; }
+.en-root .mf-sec-title { font-size: 20px; }
+.en-root .mf-mem, .en-root .mf-warn { padding: 9px 12px; margin-top: 8px; }
+.en-root .mf-mem-title, .en-root .mf-warn-title { margin-bottom: 3px; }
+.en-root .mf-mem ul, .en-root .mf-warn ul { margin-top: 2px; }
+.en-table td, .en-table th { padding: 5px 8px; }
+
+.en-root .mf-mem li, .en-root .mf-warn li { font-size: 13.5px; line-height: 1.7; color: var(--text-2); }
+.en-root .mf-warn ul { padding-left: 16px; margin-top: 4px; }
+
+/* Cards are dealt into columns of similar height (EnglishSections.jsx); below 900px one column in source order. */
+.en-cols { display: flex; flex-direction: column; gap: 16px; }
+.en-col { display: contents; }
+@media (min-width: 900px) {
+  .en-cols { flex-direction: row; align-items: flex-start; }
+  .en-col { display: flex; flex-direction: column; gap: 16px; flex: 1 1 0; min-width: 0; }
+  .en-cols-1 { max-width: 760px; }
+  .en-col > .mf-card { order: 0 !important; }
+}

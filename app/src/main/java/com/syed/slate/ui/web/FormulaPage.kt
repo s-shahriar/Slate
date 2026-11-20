@@ -33,6 +33,8 @@ import org.json.JSONObject
 /** Which pre-rendered page, and which wrapper its stylesheet expects. */
 enum class PageKind(val css: List<String>, val open: String, val close: String, val highlights: Boolean = false, val script: String? = null) {
     MATH(listOf("mathformulas.css"), """<div class="mf-root"><div class="mf-wrap mf-cover-on">""", "</div></div>", highlights = true),
+    /** Utility » English: math's card styles plus english.css (copied from the web by the prerender). */
+    ENGLISH(listOf("mathformulas.css", "english.css"), """<div class="mf-root en-root"><div class="mf-wrap">""", "</div></div>", highlights = true),
     EQUATION(listOf("equation.css"), """<div class="eq-page">""", "</div>", highlights = true),
     /** One SQL Lab lesson; sql.js switches between its versions. */
     SQL(listOf("sql.css"), """<div class="sl-root"><main class="sl-main">""", "</main></div>", highlights = true, script = "sql.js"),

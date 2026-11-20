@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -64,10 +66,12 @@ fun SlateTopBar(
     colors: TopAppBarColors,
 ) {
     HandMirror {
+        // Icon buttons at 40dp instead of the 48dp touch minimum: with a screen's own actions plus the trio, 48dp each
+        // left a long page name a few letters on a phone.
         TopAppBar(
             title = title,
-            navigationIcon = navigationIcon,
-            actions = {
+            navigationIcon = { CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 40.dp) { navigationIcon() } },
+            actions = { CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 40.dp) {
                 actions()
                 // The web's constant trio: hand, theme, sync — same place on every screen.
                 val toggleTheme = LocalToggleTheme.current
@@ -89,7 +93,7 @@ fun SlateTopBar(
                         tint = if (LocalLeftHand.current) MaterialTheme.colorScheme.primary else LocalContentColor.current.copy(alpha = .55f),
                     )
                 }
-            },
+            } },
             colors = colors,
         )
     }
@@ -99,18 +103,27 @@ fun SlateTopBar(
 fun <T> handOrdered(left: Boolean, first: T, second: T): Pair<T, T> = if (left) second to first else first to second
 
 /**
- * A top-bar title: always one line (vertical space matters more than the full name), shrinking a little for long
- * names before it ellipsizes.
+ * A top-bar title: one line when it fits (shrinking a little), otherwise two smaller lines, so a long page name is
+ * still readable next to the action buttons on a phone.
  */
 @Composable
 fun BarTitle(
     text: String, modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.titleLarge, fontWeight: FontWeight? = null,
 ) {
+    // One line, shrinking to 16sp; if it still does not fit, two lines from 15sp down to 13sp before the ellipsis.
     var size by remember(text) { mutableStateOf(style.fontSize) }
+    var lines by remember(text) { mutableStateOf(1) }
     Text(
-        text, modifier, style = style.copy(fontSize = size), fontWeight = fontWeight, maxLines = 1, softWrap = false,
-        overflow = TextOverflow.Ellipsis,
-        onTextLayout = { if (it.hasVisualOverflow && size.value > 15f) size = (size.value - 1f).sp },
+        text, modifier, style = style.copy(fontSize = size, lineHeight = (size.value * 1.2f).sp), fontWeight = fontWeight,
+        maxLines = lines, softWrap = lines > 1, overflow = TextOverflow.Ellipsis,
+        onTextLayout = {
+            if (!it.hasVisualOverflow) return@Text
+            when {
+                lines == 1 && size.value > 16f -> size = (size.value - 1f).sp
+                lines == 1 -> { lines = 2; size = 15.sp }
+                size.value > 13f -> size = (size.value - 1f).sp
+            }
+        },
     )
 }

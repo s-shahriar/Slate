@@ -89,14 +89,14 @@ Three scopes in `ui/theme/Palette.kt`: `SHELL` (rust, the Slate home/settings), 
    copy the prerender never overwrites: mirror every ict-quiz `sql.css` change into it by hand. Highlights (0.7.7): the lesson markup carries `data-hl-root` (lesson uid) and the web's `data-hl-block` keys (`question`, `sN.noteI`, `sN.pseudo`, `trapI`, `v2.` prefix), painted by `highlight.js` like the Equation pages. Not yet: notes on SQL lessons.
 5. ✅ Highlights, recycle bin, left/right-hand layout. Next: mobile extras (reminders, streaks, spaced repetition, timed exams).
 
-## Pre-rendered pages (math formulas, equations) and `content_blobs`
+## Pre-rendered pages (math formulas, English notes, equations) and `content_blobs`
 The web apps build these from JSX + KaTeX; Slate ships them as static HTML in `app/src/main/assets/web` and shows each in a
 script-light `WebView` (`ui/web/FormulaPage.kt`: no network, no file access, JS only for `controller.js`). Regenerate **and publish** with
 `node tools/prerender/build.mjs [--dry]` (needs the two web projects next to Slate, Node and Google Chrome; output is committed, so building
 the app needs none of it). The tool bundles the web components with esbuild (stubbing their app-only imports), renders them with cover mode
 forced ON, lets headless Chrome run the web's own uid code to tag each math card with `data-uid` (`m<hash>`), and copies KaTeX CSS/fonts.
 `controller.js` switches cover mode on/off, reveals one element per tap, and bridges stars to Slate. Theme tokens are injected from the
-active palette. Re-run the tool whenever the web apps change those pages. SQL Lab lessons are drawn in Chrome (not Node): their SVG boxes are sized
+active palette. Re-run the tool whenever the web apps change those pages. Utility » English (`web/english`, 0.8.21) is general-quiz's `EnglishSections.jsx` rendered over `englishData.js` and shown with `PageKind.ENGLISH` (math's screen, `e` uids, no cover); `assets/web/english.css` is copied from the web on every run, never edit it here. SQL Lab lessons are drawn in Chrome (not Node): their SVG boxes are sized
 from canvas-measured text, so the tool loads Slate's own `jetbrains_mono_regular.ttf` first and the widths match the WebView. Equation highlights will need the web's DOM anchoring ported
 into the WebView (blocks are already tagged `data-hl-block`).
 
