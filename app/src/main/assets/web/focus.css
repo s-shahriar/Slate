@@ -166,6 +166,10 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
 .fc-content .qa { background: var(--surface); border: 1px solid var(--border-md); border-left: 3px solid var(--fc); border-radius: 12px; padding: 10px 44px 10px 14px; margin: 0 0 12px; box-shadow: var(--shadow-sm); }
 .fc-content .qa-q { font-weight: 700; font-size: 15px; line-height: 1.55; color: var(--text); display: flex; gap: 8px; }
 .fc-content .qa-n { flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--fc-tint); color: var(--fc); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.fc-content .qa-a.qa-covered { filter: blur(6px); user-select: none; -webkit-user-select: none; cursor: pointer; }
+.fc-content .qa:has(.qa-covered) { cursor: pointer; }
+.gk-search { margin-bottom: 22px; }
+.gk-cover-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .fc-content button.gk-hit { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding-right: 14px; }
 .fc-content .gk-hit-cat { margin: 6px 0 0 34px; font-size: 12px; color: var(--fc); }
 .fc-content .qa-a { margin: 6px 0 0 34px; font-size: 14.5px; line-height: 1.65; color: var(--text-2); }

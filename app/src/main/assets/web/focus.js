@@ -150,6 +150,8 @@ function tagFocus(article, gid, hash) {
   var holder = document.querySelector('[data-gid]');
   if (!article) return;
   var roots = tagFocus(article, holder ? holder.getAttribute('data-gid') : '', focusUidOfText);
+  // Written » GK: answers render covered; controller.js collects .qa-covered and the eye button switches cover mode.
+  article.querySelectorAll('.qa-a').forEach(function (a) { a.classList.add('qa-covered'); });
   // controller.js stars '.mf-card[data-uid]' units and their ':scope > .mf-imp-btn'.
   roots.forEach(function (r) {
     tagMathBlocks(r, focusUidOfText);

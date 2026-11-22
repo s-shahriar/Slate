@@ -6,10 +6,10 @@
   var covers = [];
 
   function collect() {
-    var els = document.querySelectorAll('.mf-covered,.mf-tex-covered,.eq-covered');
+    var els = document.querySelectorAll('.mf-covered,.mf-tex-covered,.eq-covered,.qa-covered');
     for (var i = 0; i < els.length; i++) {
       var e = els[i];
-      var cls = e.classList.contains('mf-covered') ? 'mf-covered' : e.classList.contains('mf-tex-covered') ? 'mf-tex-covered' : 'eq-covered';
+      var cls = e.classList.contains('mf-covered') ? 'mf-covered' : e.classList.contains('mf-tex-covered') ? 'mf-tex-covered' : e.classList.contains('qa-covered') ? 'qa-covered' : 'eq-covered';
       e.setAttribute('data-cv', cls);
       covers.push(e);
     }
@@ -83,6 +83,10 @@
     if (!cover) return;
     var cv = t.closest('[data-cv]');
     if (cv) { cv.classList.toggle(cv.getAttribute('data-cv')); return; }
+    // Written » GK: a tap anywhere on a question block shows (or hides again) its answer.
+    var qa = t.closest('.qa');
+    var qcv = qa && qa.querySelector('[data-cv]');
+    if (qcv) { qcv.classList.toggle(qcv.getAttribute('data-cv')); return; }
     var st = t.closest('.mf-cmp-table:not(.mf-no-cover) td.hl, .mf-fi, .mf-set-box-val, .mf-cv');
     if (st) st.classList.toggle('mf-revealed');
   }, true);

@@ -84,6 +84,8 @@ import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.Water
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 /** General » Written » GK, from the General project's `content_blobs` (kind `written`, key `gk`; general-quiz scripts/sync-gk.mjs):
  *  one page of question-answer blocks per category, read like Written » Focus (same stars, filter and highlights). */
@@ -193,6 +195,8 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
     val ground = gkGround()
     var switcher by remember { mutableStateOf(false) }
     var importantOnly by remember { mutableStateOf(false) }
+    // Eye (cover mode): answers blurred until a question is tapped, like the Math page.
+    var cover by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val flags by m.progress.flags.collectAsState()
     // GK blocks share Focus's "f<hash>" uids (lib/focusMarks.js on the web, focus.js here).
     val important = remember(flags) { flags.filter { it.key.startsWith("f") && it.value.important }.keys }
@@ -205,6 +209,9 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     if (cat != null) {
+                        IconButton(onClick = { cover = !cover }) {
+                            Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, if (cover) "Show answers" else "Cover answers", tint = if (cover) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current)
+                        }
                         IconButton(onClick = { importantOnly = !importantOnly }) {
                             Icon(if (importantOnly) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, "Important only", tint = if (importantOnly) p.imp else androidx.compose.material3.LocalContentColor.current)
                         }
@@ -230,7 +237,7 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         var clearNonce by remember { mutableIntStateOf(0) }
         Box(Modifier.fillMaxSize().padding(pad)) {
             FormulaPage(
-                kind = PageKind.FOCUS, body = body, palette = p, dark = dark, cover = false,
+                kind = PageKind.FOCUS, body = body, palette = p, dark = dark, cover = cover,
                 importantOnly = importantOnly, important = important,
                 onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
                 highlights = onPage, clearSelectionNonce = clearNonce,
