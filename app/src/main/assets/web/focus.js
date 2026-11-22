@@ -34,6 +34,14 @@ function focusUidOfText(key) {
   return 'f' + cyrb53(norm).toString(36)
 }
 
+// Utility » English cards: 'e' + hash of "<sectionId>::<card title>", kept apart from math's 'm' so each page counts
+// only its own Important cards.
+function englishUidOfText(key) {
+  const norm = normalizeQ(key)
+  if (!norm) return null
+  return 'e' + cyrb53(norm).toString(36)
+}
+
 
 const SKIP = 'svg, button, .mf-tex'
 const FORMULA_KEY = /^f:/
@@ -74,7 +82,7 @@ function tagMathBlocks(card, hash) {
 }
 
 
-const UNIT = '.fix, .card, .sec, .q2, .chart, .box, .fc-tbl'
+const UNIT = '.fix, .card, .sec, .q2, .chart, .box, .fc-tbl, .qa'
 const STAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
 
 // A root whose text sits directly in it (an intro box, a quote, a label) gets that content wrapped in one

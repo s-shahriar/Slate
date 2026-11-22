@@ -62,6 +62,8 @@ import com.syed.slate.ui.screen.StudyScreen
 import com.syed.slate.ui.screen.WrittenDataScreen
 import com.syed.slate.ui.screen.FocusHomeScreen
 import com.syed.slate.ui.screen.FocusGroupScreen
+import com.syed.slate.ui.screen.GkHomeScreen
+import com.syed.slate.ui.screen.GkCategoryScreen
 import com.syed.slate.ui.theme.SlateTheme
 import com.syed.slate.ui.theme.Scope
 
@@ -157,6 +159,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onAdmin = { nav.navigate("admin") },
                         onRoutine = { nav.navigate("routine/${id.key}") },
                         onFocus = { nav.navigate("focus") },
+                        onGk = { nav.navigate("gk") },
                         onSearchHit = { item ->
                             val dest = if (LongForm.isLongForm(item)) "read" else "study"
                             nav.navigate("$dest/${id.key}/${item.group}/${item.topic}?focus=${Uri.encode(item.uid ?: "")}")
@@ -252,6 +255,12 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
             Themed(Scope.GENERAL, ModuleId.GENERAL) {
                 FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.navigate("focus/$g") { popUpTo("focus/{g}/{t}") { inclusive = true } } }, topicId = e.arg("t"), onOpenTopic = { t -> nav.replace("focus/$t") })
             }
+        }
+        composable("gk") {
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkHomeScreen(vm, onBack = { nav.popBackStack() }, onOpen = { c -> nav.navigate("gk/$c") }) }
+        }
+        composable("gk/{c}") { e ->
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkCategoryScreen(vm, e.arg("c"), onBack = { nav.popBackStack() }, onSwitch = { c -> nav.replace("gk/$c") }) }
         }
         composable("written/{m}") { e ->
             Themed(e.module().scope()) { WrittenDataScreen(vm, onBack = { nav.popBackStack() }) }

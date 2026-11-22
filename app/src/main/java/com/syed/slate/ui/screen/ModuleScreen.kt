@@ -136,6 +136,7 @@ class ModuleNav(
     val onAdmin: () -> Unit = {},
     val onRoutine: () -> Unit = {},
     val onFocus: () -> Unit = {},
+    val onGk: () -> Unit = {},
     val onEnglish: () -> Unit = {},
 )
 
@@ -305,6 +306,9 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
             item(key = "written-focus") {
                 UtilityCard("Focus", "ফোকাস রাইটিং — ৬ গ্রুপের ভূমিকা, উক্তি, উপসংহার ও পয়েন্ট ব্যাংক", nav.onFocus, Modifier.fillMaxWidth())
+            }
+            item(key = "written-gk") {
+                UtilityCard("GK", "লিখিত সাধারণ জ্ঞান — ৫০০ প্রশ্নোত্তর, ২৪টি বিষয়", nav.onGk, Modifier.fillMaxWidth())
             }
         } else if (inUtility) {
             item(key = "tool-math") {
