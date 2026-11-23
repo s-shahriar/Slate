@@ -137,6 +137,7 @@ class ModuleNav(
     val onRoutine: () -> Unit = {},
     val onFocus: () -> Unit = {},
     val onGk: () -> Unit = {},
+    val onFinanceQa: () -> Unit = {},
     val onEnglish: () -> Unit = {},
 )
 
@@ -309,6 +310,9 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
             item(key = "written-gk") {
                 UtilityCard("GK", "লিখিত সাধারণ জ্ঞান — ৫০০ প্রশ্নোত্তর, ২৪টি বিষয়", nav.onGk, Modifier.fillMaxWidth())
+            }
+            item(key = "written-finance") {
+                UtilityCard("Financial", "ফিন্যান্স ও ব্যাংকিং — পূর্ণরূপ ও পরীক্ষার আগের রাতের সংখ্যা-শিট", nav.onFinanceQa, Modifier.fillMaxWidth())
             }
         } else if (inUtility) {
             item(key = "tool-math") {

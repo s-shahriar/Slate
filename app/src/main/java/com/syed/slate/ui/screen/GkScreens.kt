@@ -84,6 +84,7 @@ import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.Water
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 
@@ -91,9 +92,16 @@ import androidx.compose.material.icons.filled.VisibilityOff
  *  one page of question-answer blocks per category, read like Written » Focus (same stars, filter and highlights). */
 class GkCat(val id: String, val n: Int, val title: String, val icon: String, val color: Int, val count: Int, val html: String)
 
+/** A Q&A section of Written: blob written/<key> (general-quiz scripts/sync-gk.mjs <key>), like the web's QA_SECTIONS. */
+enum class QaSection(val key: String, val title: String, val label: String, val unit: String) {
+    GK("gk", "GK", "লিখিত সাধারণ জ্ঞান", "প্রশ্ন"),
+    FINANCE("finance", "Financial", "ফিন্যান্স ও ব্যাংকিং", "আইটেম");
+    companion object { fun of(key: String) = entries.firstOrNull { it.key == key } ?: GK }
+}
+
 object GkIndex {
-    fun cats(blobs: BlobRepository): List<GkCat> {
-        val p = blobs.payload("written", "gk") ?: return emptyList()
+    fun cats(blobs: BlobRepository, sec: QaSection = QaSection.GK): List<GkCat> {
+        val p = blobs.payload("written", sec.key) ?: return emptyList()
         val a = p.getJSONArray("categories")
         return List(a.length()) { i -> a.getJSONObject(i).let { o -> GkCat(o.getString("id"), o.getInt("n"), o.getString("title"), o.optString("icon"), o.optInt("color", 1), o.getInt("count"), o.getString("html")) } }
     }
@@ -125,6 +133,7 @@ private val GK_ICON: Map<String, ImageVector> = mapOf(
     "Ship" to Icons.Filled.DirectionsBoat,
     "Network" to Icons.Filled.Hub,
     "CloudSun" to Icons.Filled.Cloud,
+    "Star" to Icons.Filled.Star,
 )
 
 private fun bnGk(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪৫৬৭৮৯"[it - '0'] else it }.joinToString("")
@@ -134,17 +143,17 @@ private fun gkGround(): Color = if (LocalPalette.current.isDark) MaterialTheme.c
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GkHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun GkHomeScreen(vm: SlateViewModel, sec: QaSection, onBack: () -> Unit, onOpen: (String) -> Unit) {
     val blobs = vm.module(ModuleId.GENERAL).blobs
     val ver by blobs.version.collectAsState()
-    val cats = remember(ver) { GkIndex.cats(blobs) }
+    val cats = remember(ver) { GkIndex.cats(blobs, sec) }
     val p = LocalPalette.current
     val ground = gkGround()
     Scaffold(
         containerColor = ground,
         topBar = {
             SlateTopBar(
-                title = { BarTitle("GK", style = MaterialTheme.typography.titleLarge) },
+                title = { BarTitle(sec.title, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = ground),
             )
@@ -158,7 +167,7 @@ fun GkHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> Uni
             return@Scaffold
         }
         LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item(key = "label") { Text("লিখিত সাধারণ জ্ঞান — ${bnGk(cats.sumOf { it.count })}টি প্রশ্ন, ${bnGk(cats.size)}টি বিষয়", style = MaterialTheme.typography.labelLarge, color = p.text3, modifier = Modifier.padding(bottom = 4.dp)) }
+            item(key = "label") { Text("${sec.label} — ${bnGk(cats.sumOf { it.count })}টি ${sec.unit}, ${bnGk(cats.size)}টি বিষয়", style = MaterialTheme.typography.labelLarge, color = p.text3, modifier = Modifier.padding(bottom = 4.dp)) }
             items(cats, key = { it.id }) { c ->
                 val col = TopicColors.of(c.color, p.isDark)
                 Row(
@@ -171,7 +180,7 @@ fun GkHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> Uni
                     }
                     Column(Modifier.weight(1f)) {
                         Text(c.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text("${bnGk(c.count)}টি প্রশ্ন", style = MaterialTheme.typography.labelMedium, color = p.text3)
+                        Text("${bnGk(c.count)}টি ${sec.unit}", style = MaterialTheme.typography.labelMedium, color = p.text3)
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
                 }
@@ -184,11 +193,11 @@ private fun escGk(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").repl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitch: (String) -> Unit) {
+fun GkCategoryScreen(vm: SlateViewModel, sec: QaSection, id: String, onBack: () -> Unit, onSwitch: (String) -> Unit) {
     val m = vm.module(ModuleId.GENERAL)
     val blobs = m.blobs
     val ver by blobs.version.collectAsState()
-    val cats = remember(ver) { GkIndex.cats(blobs) }
+    val cats = remember(ver) { GkIndex.cats(blobs, sec) }
     val cat = cats.firstOrNull { it.id == id } ?: cats.firstOrNull()
     val p = LocalPalette.current
     val dark = p.isDark
@@ -205,7 +214,7 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         containerColor = ground,
         topBar = {
             SlateTopBar(
-                title = { BarTitle(cat?.title ?: "GK", style = MaterialTheme.typography.titleLarge) },
+                title = { BarTitle(cat?.title ?: sec.title, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     if (cat != null) {
@@ -226,7 +235,7 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
         val body = remember(cat) {
             buildString {
                 append("""<div style="--fc:var(--topic-${cat.color})" data-gid="${cat.id}"><header class="fc-head" id="fc-top"><h1 class="fc-title">${escGk(cat.title)}</h1>""")
-                append("""<p class="fc-topics">লিখিত সাধারণ জ্ঞান · ${bnGk(cat.count)}টি প্রশ্ন</p></header><article class="fc-content">""")
+                append("""<p class="fc-topics">${sec.label} · ${bnGk(cat.count)}টি ${sec.unit}</p></header><article class="fc-content">""")
                 append(cat.html).append("</article></div>")
             }
         }
@@ -257,7 +266,7 @@ fun GkCategoryScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
             }
         }
         if (switcher) TopicSwitcherSheet(
-            title = "GK",
+            title = sec.title,
             topics = cats.map { SwitchEntry(it.id, it.title) },
             current = cat.id,
             onTopic = { switcher = false; onSwitch(it) },

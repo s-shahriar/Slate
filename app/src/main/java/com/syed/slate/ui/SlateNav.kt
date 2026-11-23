@@ -159,7 +159,8 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onAdmin = { nav.navigate("admin") },
                         onRoutine = { nav.navigate("routine/${id.key}") },
                         onFocus = { nav.navigate("focus") },
-                        onGk = { nav.navigate("gk") },
+                        onGk = { nav.navigate("qa/gk") },
+                        onFinanceQa = { nav.navigate("qa/finance") },
                         onSearchHit = { item ->
                             val dest = if (LongForm.isLongForm(item)) "read" else "study"
                             nav.navigate("$dest/${id.key}/${item.group}/${item.topic}?focus=${Uri.encode(item.uid ?: "")}")
@@ -256,11 +257,14 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                 FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.navigate("focus/$g") { popUpTo("focus/{g}/{t}") { inclusive = true } } }, topicId = e.arg("t"), onOpenTopic = { t -> nav.replace("focus/$t") })
             }
         }
-        composable("gk") {
-            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkHomeScreen(vm, onBack = { nav.popBackStack() }, onOpen = { c -> nav.navigate("gk/$c") }) }
+        // Written » GK and Written » Financial: the same Q&A reader on blob written/<s>.
+        composable("qa/{s}") { e ->
+            val s = e.arg("s")
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkHomeScreen(vm, com.syed.slate.ui.screen.QaSection.of(s), onBack = { nav.popBackStack() }, onOpen = { c -> nav.navigate("qa/$s/$c") }) }
         }
-        composable("gk/{c}") { e ->
-            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkCategoryScreen(vm, e.arg("c"), onBack = { nav.popBackStack() }, onSwitch = { c -> nav.replace("gk/$c") }) }
+        composable("qa/{s}/{c}") { e ->
+            val s = e.arg("s")
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { GkCategoryScreen(vm, com.syed.slate.ui.screen.QaSection.of(s), e.arg("c"), onBack = { nav.popBackStack() }, onSwitch = { c -> nav.replace("qa/$s/$c") }) }
         }
         composable("written/{m}") { e ->
             Themed(e.module().scope()) { WrittenDataScreen(vm, onBack = { nav.popBackStack() }) }
