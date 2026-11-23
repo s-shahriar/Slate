@@ -55,6 +55,19 @@
     }
   };
 
+  // Written » GK / Financial: question blocks carry a Nailed check (.fc-nail-btn) beside the star.
+  window.setNailed = function (uids) {
+    var set = {};
+    for (var i = 0; i < uids.length; i++) set[uids[i]] = 1;
+    var qs = document.querySelectorAll('.fc-unit.qa');
+    for (var j = 0; j < qs.length; j++) {
+      var on = !!set[qs[j].getAttribute('data-hl-root')];
+      qs[j].classList.toggle('is-nailed', on);
+      var b = qs[j].querySelector(':scope > .fc-nail-btn');
+      if (b) b.classList.toggle('on', on);
+    }
+  };
+
   window.setImportantOnly = function (on) {
     var r = document.querySelector('.mf-root');
     if (r) r.classList.toggle('mf-important-only', !!on);
@@ -70,6 +83,13 @@
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
+    var nail = t.closest('.fc-nail-btn');
+    if (nail) {
+      var nu = nail.getAttribute('data-fc-nail');
+      if (nu && window.Slate && window.Slate.toggleNailed) window.Slate.toggleNailed(nu);
+      e.preventDefault();
+      return;
+    }
     var star = t.closest('.mf-imp-btn, .eq-imp-btn');
     if (star) {
       var card = star.closest('.mf-card, .eq-group');

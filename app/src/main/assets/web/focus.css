@@ -166,9 +166,18 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
 .fc-content .qa { background: var(--surface); border: 1px solid var(--border-md); border-left: 3px solid var(--fc); border-radius: 12px; padding: 10px 44px 10px 14px; margin: 0 0 12px; box-shadow: var(--shadow-sm); }
 .fc-content .qa-q { font-weight: 700; font-size: 15px; line-height: 1.55; color: var(--text); display: flex; gap: 8px; }
 .fc-content .qa-n { flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--fc-tint); color: var(--fc); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+.fc-nail-btn {
+  position: absolute; top: 42px; right: 8px; z-index: 2; width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border-md); background: var(--surface); color: var(--text-dim);
+}
+.fc-nail-btn:hover { color: var(--ok, #2e9e5b); }
+.fc-nail-btn.on { color: #fff; background: var(--ok, #2e9e5b); border-color: transparent; }
+.fc-content .qa { min-height: 76px; }
+.fc-content .qa.is-nailed { border-left-color: var(--ok, #2e9e5b); }
 .fc-content .qa-a.qa-covered { filter: blur(6px); user-select: none; -webkit-user-select: none; cursor: pointer; }
 .fc-content .qa:has(.qa-covered) { cursor: pointer; }
-.gk-search { margin-bottom: 22px; }
+.fcw-page .wd-search-wrap.gk-search { margin: 14px 0 22px; }
 .gk-cover-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .fc-content button.gk-hit { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding-right: 14px; }
 .fc-content .gk-hit-cat { margin: 6px 0 0 34px; font-size: 12px; color: var(--fc); }
@@ -194,3 +203,12 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
   .fc-content .box td:nth-child(2)::before { content: "ভিন্ন মান: "; color: var(--text-3); }
   .fc-content .box td:nth-child(3)::before { content: "লিখবে: "; color: var(--text-3); font-weight: 700; }
 }
+
+/* ── Written » Important / Nailed (WrittenSaved.jsx) ───── */
+.ws-root .fc-jump.ws-on { background: var(--accent); color: var(--surface); border-color: transparent; }
+.ws-group { margin: 0 0 22px; }
+.ws-page { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; text-align: left; background: none; border: 0; padding: 4px 2px 10px; cursor: pointer; font: inherit; font-weight: 700; font-size: 15px; color: var(--fc); }
+.ws-sec { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--fc-tint); color: var(--fc); letter-spacing: .02em; }
+.ws-unit { margin: 0 0 12px; }
+.ws-unit > .ws-html > * { margin-bottom: 0; }
+.ws-unit > .ws-html > .fix, .ws-unit > .ws-html > .card, .ws-unit > .ws-html > .q2, .ws-unit > .ws-html > .box, .ws-unit > .ws-html > .sec, .ws-unit > .ws-html > .chart { padding-right: 44px; }

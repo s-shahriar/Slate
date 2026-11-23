@@ -83,6 +83,7 @@ function tagMathBlocks(card, hash) {
 
 
 const UNIT = '.fix, .card, .sec, .q2, .chart, .box, .fc-tbl, .qa'
+const CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
 const STAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
 
 // A root whose text sits directly in it (an intro box, a quote, a label) gets that content wrapped in one
@@ -130,6 +131,16 @@ function tagFocus(article, gid, hash) {
     b.title = 'Important হিসেবে সেভ করুন'
     b.innerHTML = STAR
     u.appendChild(b)
+    // A question block (Written » GK / Financial) can also be marked Nailed, like an MCQ question.
+    if (u.classList.contains('qa')) {
+      const n = document.createElement('button')
+      n.type = 'button'
+      n.className = 'fc-nail-btn'
+      n.setAttribute('data-fc-nail', uid)
+      n.title = 'Nailed — পুরোপুরি শিখে ফেলেছি'
+      n.innerHTML = CHECK
+      u.appendChild(n)
+    }
     roots.push(u)
   }
   for (const el of article.querySelectorAll('*')) {

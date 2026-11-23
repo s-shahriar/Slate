@@ -138,6 +138,7 @@ class ModuleNav(
     val onFocus: () -> Unit = {},
     val onGk: () -> Unit = {},
     val onFinanceQa: () -> Unit = {},
+    val onWrittenSaved: (Boolean) -> Unit = {},
     val onEnglish: () -> Unit = {},
 )
 
@@ -157,6 +158,9 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
     val sync by m.content.sync.collectAsState()
     val online by vm.online.collectAsState()
     val flags by m.progress.flags.collectAsState()
+    // Written's own Nailed / Important counts come from the Written block index (blob written/index).
+    val wver by m.blobs.version.collectAsState()
+    val wunits = remember(wver, id) { if (id == ModuleId.GENERAL) WrittenIndex.units(m.blobs) else emptyList() }
     val session by m.auth.session.collectAsState()
     LaunchedEffect(id) { vm.openModule(id) }
     // null = the sub-module launcher (Magpie-style cards); otherwise the section's own page.
@@ -196,7 +200,7 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
                     if (sel == null) SubModuleLauncher(id, s.content) { key ->
                         // General's Written is its own page; every other card opens in place.
                         if (key == ROUTINE) nav.onRoutine() else selected = key
-                    } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId))
+                    } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId), wunits = wunits)
                 }
                 ContentState.Empty -> if (sync !is SyncState.Running) EmptyState(online) { vm.refreshContent(id) }
                 else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { com.syed.slate.ui.component.SlateLoader(label = (sync as SyncState.Running).message) }
@@ -242,7 +246,7 @@ private const val SEARCH_PAGE = 8
  * and a vertical topic grid. ICT has the one dropdown: MCQ / Written / Extra / Viva / Equation / Practice.
  */
 @Composable
-private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, Flag>, nav: ModuleNav, selected: String, owner: Boolean = false) {
+private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, Flag>, nav: ModuleNav, selected: String, owner: Boolean = false, wunits: List<WrittenUnit> = emptyList()) {
     val p = LocalPalette.current
     val groupKeys = content.groups.map { it.key }
     val section = selected
@@ -302,6 +306,13 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
         }
         if (inWritten) {
+            // Written's own Nailed / Important (Focus, GK, Financial blocks), apart from the MCQ modules'.
+            item(key = "written-actions") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Action(Icons.Filled.Star, "Nailed", wunits.count { flags[it.uid]?.nailed == true }, p.ok, Modifier.weight(1f)) { nav.onWrittenSaved(true) }
+                    Action(Icons.Filled.Bookmark, "Important", wunits.count { flags[it.uid]?.important == true }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
+                }
+            }
             item(key = "written-data") {
                 UtilityCard("Data", "লিখিত পরীক্ষার তথ্য সংকলন", nav.onWritten, Modifier.fillMaxWidth())
             }

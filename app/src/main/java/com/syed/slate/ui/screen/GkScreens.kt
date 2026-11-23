@@ -209,6 +209,7 @@ fun GkCategoryScreen(vm: SlateViewModel, sec: QaSection, id: String, onBack: () 
     val flags by m.progress.flags.collectAsState()
     // GK blocks share Focus's "f<hash>" uids (lib/focusMarks.js on the web, focus.js here).
     val important = remember(flags) { flags.filter { it.key.startsWith("f") && it.value.important }.keys }
+    val nailed = remember(flags) { flags.filter { it.key.startsWith("f") && it.value.nailed }.keys }
 
     Scaffold(
         containerColor = ground,
@@ -249,6 +250,8 @@ fun GkCategoryScreen(vm: SlateViewModel, sec: QaSection, id: String, onBack: () 
                 kind = PageKind.FOCUS, body = body, palette = p, dark = dark, cover = cover,
                 importantOnly = importantOnly, important = important,
                 onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
+                nailed = nailed,
+                onToggleNailed = { uid -> m.progress.update(uid, FlagRules::toggleNailed) },
                 highlights = onPage, clearSelectionNonce = clearNonce,
                 onSelection = { uid, anchors ->
                     ctl?.target = if (anchors.isEmpty()) ctl?.target?.takeIf { it.owner !== owner }

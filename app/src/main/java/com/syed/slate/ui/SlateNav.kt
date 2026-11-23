@@ -161,6 +161,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onFocus = { nav.navigate("focus") },
                         onGk = { nav.navigate("qa/gk") },
                         onFinanceQa = { nav.navigate("qa/finance") },
+                        onWrittenSaved = { n -> nav.navigate("wsaved/${if (n) "nailed" else "important"}") },
                         onSearchHit = { item ->
                             val dest = if (LongForm.isLongForm(item)) "read" else "study"
                             nav.navigate("$dest/${id.key}/${item.group}/${item.topic}?focus=${Uri.encode(item.uid ?: "")}")
@@ -256,6 +257,9 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
             Themed(Scope.GENERAL, ModuleId.GENERAL) {
                 FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.navigate("focus/$g") { popUpTo("focus/{g}/{t}") { inclusive = true } } }, topicId = e.arg("t"), onOpenTopic = { t -> nav.replace("focus/$t") })
             }
+        }
+        composable("wsaved/{mode}") { e ->
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { com.syed.slate.ui.screen.WrittenSavedScreen(vm, e.arg("mode") == "nailed", onBack = { nav.popBackStack() }, onOpen = { r -> nav.navigate(r) }) }
         }
         // Written » GK and Written » Financial: the same Q&A reader on blob written/<s>.
         composable("qa/{s}") { e ->
