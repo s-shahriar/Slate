@@ -91,8 +91,16 @@ fun WrittenDataPage(vm: SlateViewModel, onBack: () -> Unit) {
         }
         val body = remember(page, only) {
             buildString {
-                append("""<div style="--fc:var(--accent)" data-gid="data"><header class="fc-head" id="fc-top"><h1 class="fc-title">${escD(page.optString("title"))}</h1>""")
-                append("""<p class="fc-topics">${escD(page.optString("subtitle"))}</p></header><article class="fc-content">""")
+                // The web's open title block (WrittenData.jsx .dp-head): eyebrow, title, subtitle, dataset count + colour dots, sources.
+                val secs = page.optJSONArray("sections")
+                val n = secs?.length() ?: 0
+                val dots = (0 until n).joinToString("") { """<i style="background:var(--topic-${secs!!.getJSONObject(it).optInt("color", 6)})"></i>""" }
+                val srcs = (0 until n).map { secs!!.getJSONObject(it).optString("source") }.map { s -> Regex("""\(([^)]+)\)""").find(s)?.groupValues?.get(1) ?: s }.filter { it.isNotBlank() }.distinct()
+                val bn = n.toString().map { "০১২৩৪৫৬৭৮৯"[it - '0'] }.joinToString("")
+                append("""<div style="--fc:var(--accent)" data-gid="data"><header class="dp-head" id="fc-top"><span class="dp-eyebrow">Written · Data</span><h1 class="dp-title">${escD(page.optString("title"))}</h1>""")
+                append("""<p class="dp-sub">${escD(page.optString("subtitle"))}</p><div class="dp-facts"><span><b>$bn</b> ডেটাসেট</span><span class="dp-dots">$dots</span>""")
+                if (srcs.isNotEmpty()) append("""<span class="dp-srcs">উৎস: ${escD(srcs.joinToString(" · "))}</span>""")
+                append("""</div></header><article class="fc-content">""")
                 // One line per dataset box (scripts/sync-data-page.mjs), so a pick keeps just that line.
                 val html = page.optString("html")
                 append(if (only == null) html else html.lines().filter { it.contains("id=\"$only\"") }.joinToString("\n")).append("</article></div>")

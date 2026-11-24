@@ -310,13 +310,25 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
         }
         if (inWritten) {
             // Written's own Nailed / Important (Focus, GK, Financial blocks), apart from the MCQ modules'.
+            item(key = "written-hero") {
+                // The section's own title block, like the web's Written home: icon coin, name, one line on what is inside.
+                Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.EditNote, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Column {
+                        Text("Written", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("লিখিত পরীক্ষার প্রস্তুতি — ডেটা, ফোকাস, GK ও ফিন্যান্স", style = MaterialTheme.typography.bodySmall, color = p.text3)
+                    }
+                }
+            }
             item(key = "written-actions") {
                 // Focus blocks (index) + the GK / Financial questions.
                 val wq = remember(content) { content.allItems().filter { it.group == "wgk" || it.group == "wfin" }.mapNotNull { it.uid }.toList() }
                 fun n(pick: (com.syed.slate.progress.Flag) -> Boolean) = wunits.count { flags[it.uid]?.let(pick) == true } + wq.count { flags[it]?.let(pick) == true }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Action(Icons.Filled.Star, "Nailed", n { it.nailed }, p.ok, Modifier.weight(1f)) { nav.onWrittenSaved(true) }
-                    Action(Icons.Filled.Bookmark, "Important", n { it.important }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
+                    SavedTile(Icons.Filled.Star, "Nailed It", n { it.nailed }, p.ok, Modifier.weight(1f)) { nav.onWrittenSaved(true) }
+                    SavedTile(Icons.Filled.Bookmark, "Important", n { it.important }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
                 }
             }
             item(key = "written-label") {
@@ -585,6 +597,29 @@ private fun Action(icon: ImageVector, label: String, count: Int?, color: Color, 
             Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
         }
         Text(count?.toString() ?: "Start", style = MaterialTheme.typography.titleLarge, color = if (count == null) color else Color.Unspecified)
+    }
+}
+
+/** Written's Nailed / Important tile: tinted in its colour, icon coin, big count, "saved · দেখো ›" footer (the web's action cards). */
+@Composable
+private fun SavedTile(icon: ImageVector, label: String, count: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(color.copy(alpha = if (p.isDark) .16f else .10f))
+            .border(1.dp, color.copy(alpha = .28f), RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(color.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(20.dp), tint = color)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(label, style = MaterialTheme.typography.titleSmall)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("দেখো", style = MaterialTheme.typography.labelMedium, color = color, modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = color)
+        }
     }
 }
 

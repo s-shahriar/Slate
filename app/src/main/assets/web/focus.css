@@ -228,3 +228,21 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
   .fc-content table.dpt td, .fc-content table.dpt th { display: table-cell; width: auto; padding: 7px 10px; line-height: 1.5; }
   .fc-content table.dpt td:first-child { font-weight: 400; color: var(--text-2) !important; font-size: 14px; margin: 0; }
 }
+
+/* Data page header: open title block (no boxed card), then a sticky toolbar under the top bar. */
+.fcw-page .dp-head { margin: 22px 2px 14px; }
+.fcw-page .dp-eyebrow { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.fcw-page .dp-title { font-family: var(--font-display); font-size: clamp(1.45rem, 3.4vw, 1.9rem); font-weight: 800; line-height: 1.25; margin: 0; color: var(--text); letter-spacing: -.01em; }
+.fcw-page .dp-sub { margin: 6px 0 0; font-size: 15px; line-height: 1.6; color: var(--text-3); max-width: 62ch; }
+.fcw-page .dp-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; font-size: 13px; color: var(--text-3); }
+.fcw-page .dp-facts b { color: var(--text); font-size: 15px; }
+.fcw-page .dp-dots { display: inline-flex; gap: 4px; }
+.fcw-page .dp-dots i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.fcw-page .dp-srcs { flex-basis: 100%; font-size: 12.5px; }
+.fcw-page .dp-toolbar { position: sticky; top: 58px; z-index: 50; margin: 0 -4px 16px; padding: 8px 4px;
+  background: var(--surface-glass, var(--bg)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.fcw-page .dp-bar { display: flex; align-items: stretch; gap: 10px; }
+.fcw-page .dp-pick .exam-select-btn { height: 42px; border-radius: 12px; }
+.fcw-page .dp-bar .fc-imp-filter { height: 42px; border-radius: 12px; }
+.fcw-page .dp-pick { flex: 1; min-width: 0; max-width: 460px; }
+.fcw-page .dp-bar .fc-imp-filter { flex: none; padding: 0 16px; font-size: 13.5px; }
