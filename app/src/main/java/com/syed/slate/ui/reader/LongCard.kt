@@ -4,6 +4,9 @@ import com.syed.slate.ui.component.categoryEditable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,7 +48,13 @@ fun LongCard(
     modifier: Modifier = Modifier,
     topicLabel: String? = null,
     focused: Boolean = false,
+    /** Short-answer cards (Written » GK / Financial): the answer is covered until tapped (the reader's eye button). */
+    cover: Boolean = false,
 ) {
+    // A short-answer card (General's Written » GK / Financial) shows its answer under the question like the web —
+    // no fold; the eye covers it instead.
+    val short = item.group in com.syed.slate.content.LongForm.shortAnswer
+    var revealed by androidx.compose.runtime.saveable.rememberSaveable(cover, item.id) { androidx.compose.runtime.mutableStateOf(false) }
     val p = LocalPalette.current
     val primary = MaterialTheme.colorScheme.primary
     Column(
@@ -58,22 +67,30 @@ fun LongCard(
             Text(it, Modifier.clip(MaterialTheme.shapes.small).background(p.primaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelMedium, color = p.onPrimaryContainer)
         }
-        Row(Modifier.fillMaxWidth().clickable(onClick = onToggle), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().then(if (short) Modifier else Modifier.clickable(onClick = onToggle)), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
             number?.let { Text("Q$it", style = MaterialTheme.typography.labelLarge, color = primary, modifier = Modifier.padding(top = 3.dp)) }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Collapsed, the question is plain text so a tap anywhere on it opens the card; open, it can be highlighted,
                 // and a plain tap on it still folds the card (long-press selects as before).
-                QuestionTextBlocks(item.question, uid = item.uid, editable = open, onTap = onToggle)
+                QuestionTextBlocks(item.question, uid = item.uid, editable = open || short, onTap = if (short) ({}) else onToggle)
                 item.verdict?.let {
                     Text(it, Modifier.clip(MaterialTheme.shapes.small).background(p.primaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelLarge, color = p.onPrimaryContainer)
                 }
             }
-            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Collapse" else "Expand", tint = p.text3)
+            if (!short) Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Collapse" else "Expand", tint = p.text3)
         }
         // The listing the card is about, visible while collapsed.
         item.headerCode?.let { CodeBlock(it, item.headerCodeLang, uid = item.uid, block = "headerCode") }
-        item.answer?.let { a ->
+        if (short) item.answer?.let { a ->
+            if (cover && !revealed) Box(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.primaryContainer.copy(alpha = .55f))
+                    .border(1.dp, primary.copy(alpha = .25f), MaterialTheme.shapes.medium).clickable { revealed = true }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) { Text("উত্তর দেখতে চাপো", style = MaterialTheme.typography.bodyMedium, color = p.text3) }
+            else WrittenBody(a, uid = item.uid)
+        }
+        else item.answer?.let { a ->
             androidx.compose.animation.AnimatedVisibility(open, enter = com.syed.slate.ui.component.Motion.expand, exit = com.syed.slate.ui.component.Motion.collapse) {
                 WrittenBody(a, uid = item.uid)
             }

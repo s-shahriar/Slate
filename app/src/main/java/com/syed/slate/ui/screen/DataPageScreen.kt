@@ -56,8 +56,8 @@ fun WrittenDataPage(vm: SlateViewModel, onBack: () -> Unit) {
     val ground = if (p.isDark) MaterialTheme.colorScheme.background else Color.White
     var importantOnly by remember { mutableStateOf(false) }
     var switcher by remember { mutableStateOf(false) }
-    var target by remember { mutableStateOf<String?>(null) }
-    var nonce by remember { mutableIntStateOf(0) }
+    // Dataset picker (top-bar switcher): null = all datasets (default), otherwise only that one.
+    var only by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val flags by m.progress.flags.collectAsState()
     val important = remember(flags) { flags.filter { it.key.startsWith("f") && it.value.important }.keys }
     val sections = remember(page) {
@@ -89,11 +89,13 @@ fun WrittenDataPage(vm: SlateViewModel, onBack: () -> Unit) {
             }
             return@Scaffold
         }
-        val body = remember(page) {
+        val body = remember(page, only) {
             buildString {
                 append("""<div style="--fc:var(--accent)" data-gid="data"><header class="fc-head" id="fc-top"><h1 class="fc-title">${escD(page.optString("title"))}</h1>""")
                 append("""<p class="fc-topics">${escD(page.optString("subtitle"))}</p></header><article class="fc-content">""")
-                append(page.optString("html")).append("</article></div>")
+                // One line per dataset box (scripts/sync-data-page.mjs), so a pick keeps just that line.
+                val html = page.optString("html")
+                append(if (only == null) html else html.lines().filter { it.contains("id=\"$only\"") }.joinToString("\n")).append("</article></div>")
             }
         }
         val ctl = com.syed.slate.ui.highlight.LocalHighlights.current
@@ -105,7 +107,6 @@ fun WrittenDataPage(vm: SlateViewModel, onBack: () -> Unit) {
             FormulaPage(
                 kind = PageKind.FOCUS, body = body, palette = p, dark = p.isDark, cover = false,
                 importantOnly = importantOnly, important = important,
-                scrollTo = target, scrollNonce = nonce,
                 onToggleImportant = { uid -> m.progress.update(uid, FlagRules::toggleImportant) },
                 highlights = onPage, clearSelectionNonce = clearNonce,
                 onSelection = { uid, anchors ->
@@ -117,13 +118,13 @@ fun WrittenDataPage(vm: SlateViewModel, onBack: () -> Unit) {
         }
         if (switcher) TopicSwitcherSheet(
             title = "Data",
-            topics = listOf(SwitchEntry("data", "লিখিত পরীক্ষার ডেটা")),
+            topics = listOf(SwitchEntry("data", "সব ডেটা (${sections.size}টি)")),
             current = "data",
             onTopic = { switcher = false },
             onDismiss = { switcher = false },
             subtopics = sections.map { (id, label) -> SwitchEntry(id, label) },
-            currentSub = null,
-            onSubtopic = { sid -> switcher = false; target = sid ?: "fc-top"; nonce++ },
+            currentSub = only,
+            onSubtopic = { sid -> switcher = false; only = sid },
         )
     }
 }

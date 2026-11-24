@@ -51,6 +51,8 @@ import com.syed.slate.backend.ModuleId
 import com.syed.slate.content.ContentState
 import com.syed.slate.content.Item
 import com.syed.slate.content.LongForm
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import com.syed.slate.content.PoolSet
 import com.syed.slate.content.QuizPool
 import com.syed.slate.content.SearchText
@@ -98,6 +100,9 @@ fun ReaderScreen(
     var filter by rememberSaveable { mutableStateOf(ReaderFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
     var open by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // Eye (cover mode) on short-answer topics (Written » GK / Financial), like the web's.
+    val short = group in LongForm.shortAnswer
+    var cover by rememberSaveable { mutableStateOf(false) }
     val haystacks = remember(all) { all.associate { it.id to SearchText.haystack(it) } }
     val tokens = SearchText.tokens(query)
 
@@ -171,7 +176,13 @@ fun ReaderScreen(
             SlateTopBar(
                 title = { BarTitle(segment ?: name, style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = { com.syed.slate.ui.component.TopicSwitchButton { switcher = true } },
+                actions = {
+                    if (short) IconButton(onClick = { cover = !cover }) {
+                        Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, if (cover) "Show answers" else "Cover answers",
+                            tint = if (cover) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current)
+                    }
+                    com.syed.slate.ui.component.TopicSwitchButton { switcher = true }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -223,6 +234,7 @@ fun ReaderScreen(
                             open = if (key in open) open - key else open + key
                         },
                         focused = r.item.uid == focus,
+                        cover = cover,
                     )
                 }
             }
