@@ -52,6 +52,9 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import com.syed.slate.ui.theme.isDark
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -316,17 +319,22 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                     Action(Icons.Filled.Bookmark, "Important", n { it.important }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
                 }
             }
+            item(key = "written-label") {
+                Text("বিষয় বেছে নাও", Modifier.padding(top = 6.dp, start = 2.dp), style = MaterialTheme.typography.labelLarge, color = p.text3)
+            }
             item(key = "written-data") {
-                UtilityCard("Data", "অর্থনীতি, রেমিট্যান্স, মূল্যস্ফীতি, দারিদ্র্য, রপ্তানি ও জ্বালানির ডেটা — টেবিল ও চার্টে", nav.onWritten, Modifier.fillMaxWidth())
+                WrittenEntry(Icons.Filled.BarChart, 8, "Data", "টেবিল ও চার্টে ১২টি ডেটাসেট", nav.onWritten)
             }
             item(key = "written-focus") {
-                UtilityCard("Focus", "ফোকাস রাইটিং — ৬ গ্রুপের ভূমিকা, উক্তি, উপসংহার ও পয়েন্ট ব্যাংক", nav.onFocus, Modifier.fillMaxWidth())
+                WrittenEntry(Icons.Filled.EditNote, 2, "Focus", "৬ গ্রুপ · ভূমিকা, উক্তি, উপসংহার", nav.onFocus)
             }
             item(key = "written-gk") {
-                UtilityCard("GK", "লিখিত সাধারণ জ্ঞান — ৩৫০টি প্রশ্নোত্তর, ২৪টি বিষয়", { onSelect("wgk") }, Modifier.fillMaxWidth())
+                val n = content.groups.firstOrNull { it.key == "wgk" }
+                WrittenEntry(Icons.Filled.Public, 6, "GK", n?.let { "${it.count}টি প্রশ্নোত্তর · ${it.topics.size}টি বিষয়" } ?: "লিখিত সাধারণ জ্ঞান") { onSelect("wgk") }
             }
             item(key = "written-finance") {
-                UtilityCard("Financial", "ফিন্যান্স ও ব্যাংকিং — পূর্ণরূপ ও পরীক্ষার আগের রাতের সংখ্যা-শিট", { onSelect("wfin") }, Modifier.fillMaxWidth())
+                val n = content.groups.firstOrNull { it.key == "wfin" }
+                WrittenEntry(Icons.Filled.AccountBalance, 3, "Financial", n?.let { "পূর্ণরূপ ও সংখ্যা-শিট · ${it.count}টি" } ?: "ফিন্যান্স ও ব্যাংকিং") { onSelect("wfin") }
             }
         } else if (inUtility) {
             item(key = "tool-math") {
@@ -577,6 +585,27 @@ private fun Action(icon: ImageVector, label: String, count: Int?, color: Color, 
             Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
         }
         Text(count?.toString() ?: "Start", style = MaterialTheme.typography.titleLarge, color = if (count == null) color else Color.Unspecified)
+    }
+}
+
+/** One entry of General » Written: a coloured icon coin, the name, a one-line summary and a chevron (Focus's group-list style). */
+@Composable
+private fun WrittenEntry(icon: ImageVector, topic: Int, title: String, sub: String, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    val c = com.syed.slate.ui.theme.TopicColors.of(topic, p.isDark)
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface)
+            .border(1.dp, p.outline, MaterialTheme.shapes.large).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(46.dp).clip(MaterialTheme.shapes.medium).background(c.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(24.dp), tint = c)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(sub, style = MaterialTheme.typography.labelMedium, color = p.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
     }
 }
 
