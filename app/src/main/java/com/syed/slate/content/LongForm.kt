@@ -5,7 +5,8 @@ import org.json.JSONObject
 
 /** ICT's Written, Extra and Viva cards: one question with a structured, multi-part answer. */
 object LongForm {
-    val groups = setOf("written", "extra", "viva")
+    /** ICT's long-form modules, plus General's Written » GK / Financial (short-answer questions). */
+    val groups = setOf("written", "extra", "viva", "wgk", "wfin")
 
     fun isLongForm(item: Item) = item.group in groups
     fun isLongForm(group: String) = group in groups

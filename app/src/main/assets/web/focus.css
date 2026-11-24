@@ -18,8 +18,7 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .fix,
 html:not([data-theme="dark"]) .fcw-page .fc-content .card,
 html:not([data-theme="dark"]) .fcw-page .fc-content .sec,
 html:not([data-theme="dark"]) .fcw-page .fc-content .chart,
-html:not([data-theme="dark"]) .fcw-page .fc-content .q2,
-html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
+html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
 
 .fc-root { --fc: var(--accent); --fc-tint: color-mix(in srgb, var(--fc) 12%, transparent); }
 
@@ -162,26 +161,6 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
 
 .fc-content .fc-in { display: contents; }
 
-/* ── Written » GK: one question-answer block each (.qa) ───── */
-.fc-content .qa { background: var(--surface); border: 1px solid var(--border-md); border-left: 3px solid var(--fc); border-radius: 12px; padding: 10px 44px 10px 14px; margin: 0 0 12px; box-shadow: var(--shadow-sm); }
-.fc-content .qa-q { font-weight: 700; font-size: 15px; line-height: 1.55; color: var(--text); display: flex; gap: 8px; }
-.fc-content .qa-n { flex: none; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--fc-tint); color: var(--fc); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
-.fc-nail-btn {
-  position: absolute; top: 42px; right: 8px; z-index: 2; width: 28px; height: 28px; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--border-md); background: var(--surface); color: var(--text-dim);
-}
-.fc-nail-btn:hover { color: var(--ok, #2e9e5b); }
-.fc-nail-btn.on { color: #fff; background: var(--ok, #2e9e5b); border-color: transparent; }
-.fc-content .qa { min-height: 76px; }
-.fc-content .qa.is-nailed { border-left-color: var(--ok, #2e9e5b); }
-.fc-content .qa-a.qa-covered { filter: blur(6px); user-select: none; -webkit-user-select: none; cursor: pointer; }
-.fc-content .qa:has(.qa-covered) { cursor: pointer; }
-.fcw-page .wd-search-wrap.gk-search { margin: 14px 0 22px; }
-.gk-cover-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-.fc-content button.gk-hit { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; padding-right: 14px; }
-.fc-content .gk-hit-cat { margin: 6px 0 0 34px; font-size: 12px; color: var(--fc); }
-.fc-content .qa-a { margin: 6px 0 0 34px; font-size: 14.5px; line-height: 1.65; color: var(--text-2); }
 
 @media (max-width: 720px) {
   .fc-content { font-size: 14.5px; }
@@ -212,3 +191,9 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .qa { box-shadow: none; }
 .ws-unit { margin: 0 0 12px; }
 .ws-unit > .ws-html > * { margin-bottom: 0; }
 .ws-unit > .ws-html > .fix, .ws-unit > .ws-html > .card, .ws-unit > .ws-html > .q2, .ws-unit > .ws-html > .box, .ws-unit > .ws-html > .sec, .ws-unit > .ws-html > .chart { padding-right: 44px; }
+
+/* Left-hand layout: a block's ★ / ✓ move to the left edge, and the text makes room on that side instead. */
+[data-hand="left"] .fc-imp-btn { right: auto; left: 8px; }
+[data-hand="left"] .fc-content .fix, [data-hand="left"] .fc-content .card, [data-hand="left"] .fc-content .q2,
+[data-hand="left"] .fc-content .box, [data-hand="left"] .ws-unit > .ws-html > * { padding-right: 14px; padding-left: 44px; }
+[data-hand="left"] .fc-content .sec .sech, [data-hand="left"] .fc-content .chart .ct { padding-right: 0; padding-left: 32px; }

@@ -50,11 +50,14 @@ import com.syed.slate.ui.theme.LocalPalette
 import com.syed.slate.ui.theme.TopicColors
 import com.syed.slate.ui.theme.isDark
 
-/** One starrable block of a Written page (Focus, GK, Financial), from content_blobs written/index
- *  (general-quiz scripts/build-written-index.mjs: the same uids the pages' stars and checks carry). */
+/** One saved-able thing of Written: a Focus block (content_blobs written/index, general-quiz
+ *  scripts/build-written-index.mjs — the same uids the page's stars carry), or a GK / Financial question
+ *  (modules wgk / wfin, sec = its group, page = its topic slug). */
 class WrittenUnit(val uid: String, val sec: String, val page: String, val title: String, val color: Int, val kind: String, val q: String, val a: String, val text: String) {
-    /** This app's route to the block's page. */
-    val route get() = if (sec == "focus") "focus/$page" else "qa/$sec/$page"
+    /** This app's route to the page (Focus page, or the question's topic in the reader). */
+    val pageRoute get() = if (sec == "focus") "focus/$page" else "read/${ModuleId.GENERAL.key}/$sec/$page"
+    /** … and to this very block / question. */
+    val route get() = if (sec == "focus") "focus/$page" else "read/${ModuleId.GENERAL.key}/$sec/$page?focus=${android.net.Uri.encode(uid)}"
 }
 
 object WrittenIndex {
@@ -69,7 +72,7 @@ object WrittenIndex {
     }
 }
 
-private val SECS = listOf("focus" to "Focus", "gk" to "GK", "finance" to "Financial")
+private val SECS = listOf("focus" to "Focus", "wgk" to "GK", "wfin" to "Financial")
 private fun bnW(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪৫৬৭৮৯"[it - '0'] else it }.joinToString("")
 
 /** General » Written » Important / Nailed: Written's own saved blocks, apart from the MCQ modules' lists. */
@@ -78,7 +81,16 @@ private fun bnW(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪�
 fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Unit, onOpen: (String) -> Unit) {
     val m = vm.module(ModuleId.GENERAL)
     val ver by m.blobs.version.collectAsState()
-    val all = remember(ver) { WrittenIndex.units(m.blobs) }
+    val state by m.content.state.collectAsState()
+    val all = remember(ver, state) {
+        val content = (state as? com.syed.slate.content.ContentState.Ready)?.content
+        val names = content?.groups?.flatMap { g -> g.topics.map { (g.key + "/" + it.slug) to it.name } }?.toMap().orEmpty()
+        val qs = content?.allItems()?.filter { it.uid != null && (it.group == "wgk" || it.group == "wfin") }?.map { item ->
+            WrittenUnit(item.uid!!, item.group, item.topic, names["${item.group}/${item.topic}"] ?: item.topic, 0, "qa",
+                item.question, item.data.optString("answer"), "")
+        }?.toList().orEmpty()
+        WrittenIndex.units(m.blobs).filter { it.sec == "focus" } + qs
+    }
     val flags by m.progress.flags.collectAsState()
     val p = LocalPalette.current
     fun saved(uid: String) = flags[uid]?.let { if (nailedMode) it.nailed else it.important } == true
@@ -87,7 +99,7 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
     val shown = all.filter { it.uid in frozen || saved(it.uid) }
     var sec by remember { mutableStateOf("all") }
     val list = shown.filter { sec == "all" || it.sec == sec }
-    val groups = list.groupBy { it.route }.toList()
+    val groups = list.groupBy { it.pageRoute }.toList()
 
     Scaffold(
         topBar = {
@@ -131,7 +143,7 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
                     val done = f?.nailed == true
                     Row(
                         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.medium)
-                            .clickable { onOpen(route) }.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+                            .clickable { onOpen(u.route) }.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(Modifier.weight(1f).padding(top = 4.dp)) {

@@ -194,6 +194,8 @@ class ContentRepository(
     private fun toGeneralItem(r: org.json.JSONObject): Item {
         val cat = r.getJSONObject("categories"); r.remove("categories")
         val upd = r.optString("updated_at").ifEmpty { null }; r.remove("updated_at")
+        // Written » GK / Financial: a short-answer row; the long-form reader shows it as question + "answer" block.
+        if (r.optString("type") == "written") { r.put("q", r.optString("question")); r.put("answer", r.optString("correct_answer_text")) }
         return Item(r.getString("id"), r.optString("uid").ifEmpty { null }, cat.getString("module"), cat.getString("slug"), r.optInt("sort_order"), r, upd)
     }
 

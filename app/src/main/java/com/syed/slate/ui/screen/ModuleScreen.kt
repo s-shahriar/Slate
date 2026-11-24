@@ -136,8 +136,6 @@ class ModuleNav(
     val onAdmin: () -> Unit = {},
     val onRoutine: () -> Unit = {},
     val onFocus: () -> Unit = {},
-    val onGk: () -> Unit = {},
-    val onFinanceQa: () -> Unit = {},
     val onWrittenSaved: (Boolean) -> Unit = {},
     val onEnglish: () -> Unit = {},
 )
@@ -165,14 +163,16 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
     LaunchedEffect(id) { vm.openModule(id) }
     // null = the sub-module launcher (Magpie-style cards); otherwise the section's own page.
     var selected by rememberSaveable(id) { mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = selected != null) { selected = null }
+    // Written » GK / Financial are sections of their own (modules wgk / wfin) opened from the Written page; Back returns there.
+    fun up() { selected = if (selected == "wgk" || selected == "wfin") WRITTEN else null }
+    androidx.activity.compose.BackHandler(enabled = selected != null) { up() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             SlateTopBar(
                 title = { BarTitle(id.title, style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { IconButton(onClick = { if (selected != null) selected = null else nav.onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                navigationIcon = { IconButton(onClick = { if (selected != null) up() else nav.onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
                     IconButton(onClick = nav.onBin) { Icon(Icons.Filled.DeleteOutline, "Recycle bin") }
                     IconButton(onClick = { vm.refreshContent(id) }, enabled = online && sync !is SyncState.Running) {
@@ -200,7 +200,7 @@ fun ModuleScreen(vm: SlateViewModel, id: ModuleId, nav: ModuleNav) {
                     if (sel == null) SubModuleLauncher(id, s.content) { key ->
                         // General's Written is its own page; every other card opens in place.
                         if (key == ROUTINE) nav.onRoutine() else selected = key
-                    } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId), wunits = wunits)
+                    } else ModuleBody(id, s.content, flags, nav, sel, owner = LivemcqAdmin.isOwner(session?.userId), wunits = wunits, onSelect = { selected = it })
                 }
                 ContentState.Empty -> if (sync !is SyncState.Running) EmptyState(online) { vm.refreshContent(id) }
                 else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { com.syed.slate.ui.component.SlateLoader(label = (sync as SyncState.Running).message) }
@@ -246,7 +246,7 @@ private const val SEARCH_PAGE = 8
  * and a vertical topic grid. ICT has the one dropdown: MCQ / Written / Extra / Viva / Equation / Practice.
  */
 @Composable
-private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, Flag>, nav: ModuleNav, selected: String, owner: Boolean = false, wunits: List<WrittenUnit> = emptyList()) {
+private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, Flag>, nav: ModuleNav, selected: String, owner: Boolean = false, wunits: List<WrittenUnit> = emptyList(), onSelect: (String) -> Unit = {}) {
     val p = LocalPalette.current
     val groupKeys = content.groups.map { it.key }
     val section = selected
@@ -308,9 +308,12 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
         if (inWritten) {
             // Written's own Nailed / Important (Focus, GK, Financial blocks), apart from the MCQ modules'.
             item(key = "written-actions") {
+                // Focus blocks (index) + the GK / Financial questions.
+                val wq = remember(content) { content.allItems().filter { it.group == "wgk" || it.group == "wfin" }.mapNotNull { it.uid }.toList() }
+                fun n(pick: (com.syed.slate.progress.Flag) -> Boolean) = wunits.count { flags[it.uid]?.let(pick) == true } + wq.count { flags[it]?.let(pick) == true }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Action(Icons.Filled.Star, "Nailed", wunits.count { flags[it.uid]?.nailed == true }, p.ok, Modifier.weight(1f)) { nav.onWrittenSaved(true) }
-                    Action(Icons.Filled.Bookmark, "Important", wunits.count { flags[it.uid]?.important == true }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
+                    Action(Icons.Filled.Star, "Nailed", n { it.nailed }, p.ok, Modifier.weight(1f)) { nav.onWrittenSaved(true) }
+                    Action(Icons.Filled.Bookmark, "Important", n { it.important }, p.imp, Modifier.weight(1f)) { nav.onWrittenSaved(false) }
                 }
             }
             item(key = "written-data") {
@@ -320,10 +323,10 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 UtilityCard("Focus", "ফোকাস রাইটিং — ৬ গ্রুপের ভূমিকা, উক্তি, উপসংহার ও পয়েন্ট ব্যাংক", nav.onFocus, Modifier.fillMaxWidth())
             }
             item(key = "written-gk") {
-                UtilityCard("GK", "লিখিত সাধারণ জ্ঞান — ৫০০ প্রশ্নোত্তর, ২৪টি বিষয়", nav.onGk, Modifier.fillMaxWidth())
+                UtilityCard("GK", "লিখিত সাধারণ জ্ঞান — ৩৫০টি প্রশ্নোত্তর, ২৪টি বিষয়", { onSelect("wgk") }, Modifier.fillMaxWidth())
             }
             item(key = "written-finance") {
-                UtilityCard("Financial", "ফিন্যান্স ও ব্যাংকিং — পূর্ণরূপ ও পরীক্ষার আগের রাতের সংখ্যা-শিট", nav.onFinanceQa, Modifier.fillMaxWidth())
+                UtilityCard("Financial", "ফিন্যান্স ও ব্যাংকিং — পূর্ণরূপ ও পরীক্ষার আগের রাতের সংখ্যা-শিট", { onSelect("wfin") }, Modifier.fillMaxWidth())
             }
         } else if (inUtility) {
             item(key = "tool-math") {
@@ -509,6 +512,7 @@ private fun sectionIcon(id: ModuleId, key: String): ImageVector = when (key) {
 private fun subModuleTitle(id: ModuleId, key: String): String = when (key) {
     "bangla" -> "বাংলা ব্যাকরণ"; "english" -> "English Grammar"; "sahitya" -> "বাংলা সাহিত্য"
     "gk" -> "সাধারণ জ্ঞান"; "livemcq" -> "LiveMCQ"; WRITTEN -> "Written"; "vocab" -> "Vocabulary"; UTILITY -> "Utility"
+    "wgk" -> "Written · GK"; "wfin" -> "Written · Financial"
     EQUATION -> "Equation"; PRACTICE -> "Practice"; SQL -> "SQL Lab"; ROUTINE -> "Routine"
     else -> TopicCatalog.groupTitle(key)
 }

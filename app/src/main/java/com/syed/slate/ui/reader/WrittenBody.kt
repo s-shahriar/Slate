@@ -334,6 +334,19 @@ private fun WrittenBodyContent(a: JSONObject, modifier: Modifier, uid: String?, 
     val p = LocalPalette.current
     val primary = MaterialTheme.colorScheme.primary
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // General's short-answer questions (Written » GK / Financial): the answer itself, block key "answer" like the web.
+        a.str("answer")?.let { ans ->
+            Column(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                    .background(p.primaryContainer.copy(alpha = .55f))
+                    .border(1.dp, primary.copy(alpha = .25f), MaterialTheme.shapes.medium)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("উত্তর", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 1.1.sp), color = primary)
+                HText(uid, bk("answer"), ans, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
         a.str("code")?.let { CoverableCode(a.str("codeLang") ?: "Code", it, a.str("codeLang"), uid, bk("code")) }
         a.str("image")?.let { AnswerImage(it) }
 

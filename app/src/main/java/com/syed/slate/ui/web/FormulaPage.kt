@@ -113,12 +113,9 @@ private class Bridge(
     private val onMark: () -> ((String) -> Unit),
     private val onPrefer: () -> ((Int?) -> Unit),
     private val onZoom: (Boolean) -> Unit = {},
-    private val onNail: () -> ((String) -> Unit) = { {} },
 ) {
     private val ui = Handler(Looper.getMainLooper())
     @JavascriptInterface fun toggleImportant(uid: String) { ui.post { onToggle()(uid) } }
-    /** Written » GK / Financial: a question block's Nailed check. */
-    @JavascriptInterface fun toggleNailed(uid: String) { ui.post { onNail()(uid) } }
     @JavascriptInterface fun onSection(id: String) { ui.post { onSection()(id) } }
     @JavascriptInterface fun onReady() { ui.post { onReady.invoke() } }
     @JavascriptInterface fun onSelection(json: String) { ui.post { onSelection()(json) } }
@@ -148,9 +145,6 @@ fun FormulaPage(
     scrollTo: String? = null,
     scrollNonce: Int = 0,
     onToggleImportant: (String) -> Unit = {},
-    /** Written » GK / Financial: nailed question uids, and a tap on a block's Nailed check. */
-    nailed: Set<String> = emptySet(),
-    onToggleNailed: (String) -> Unit = {},
     onSection: (String) -> Unit = {},
     /** Saved highlights by question uid, painted onto the page (pages that support highlights only). */
     highlights: Map<String, List<com.syed.slate.highlight.Highlight>> = emptyMap(),
@@ -173,7 +167,6 @@ fun FormulaPage(
     }
     var ready by remember(html) { mutableStateOf(false) }
     val toggle = rememberUpdatedState(onToggleImportant)
-    val nailToggle = rememberUpdatedState(onToggleNailed)
     val section = rememberUpdatedState(onSection)
     val selection = rememberUpdatedState(onSelection)
     val mark = rememberUpdatedState(onMark)
@@ -195,7 +188,7 @@ fun FormulaPage(
                 setBackgroundColor(palette.bg.toArgb())
                 addJavascriptInterface(Bridge({ toggle.value }, { section.value }, { ready = true },
                     { { json -> if (json.isEmpty()) selection.value("", emptyList()) else runCatching { val o = JSONObject(json); selection.value(o.getString("uid"), o.getJSONArray("anchors").let { a -> List(a.length()) { a.getJSONObject(it).let { x -> com.syed.slate.highlight.Anchored(x.getString("block"), x.getInt("start"), x.getInt("end"), x.getString("quote")) } } }) } } },
-                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }, { prefer.value }, { zoomOpen = it }, { nailToggle.value }), "Slate")
+                    { { json -> runCatching { val o = JSONObject(json); mark.value(o.getString("uid"), o.getJSONArray("ids").let { a -> List(a.length()) { a.getString(it) } }, o.optString("color")) } } }, { prefer.value }, { zoomOpen = it }), "Slate")
                 // Nothing in these pages links anywhere; refuse any navigation rather than leave the page.
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = true
@@ -216,7 +209,6 @@ fun FormulaPage(
     val w = web
     LaunchedEffect(w, ready, cover) { if (ready) w?.evaluateJavascript("setCover($cover)", null) }
     LaunchedEffect(w, ready, importantOnly) { if (ready) w?.evaluateJavascript("setImportantOnly($importantOnly)", null) }
-    LaunchedEffect(w, ready, nailed) { if (ready && kind == PageKind.FOCUS) w?.evaluateJavascript("setNailed(${JSONArray(nailed.toList())})", null) }
     LaunchedEffect(w, ready, important) { if (ready) w?.evaluateJavascript("setImportant(${JSONArray(important.toList())})", null) }
     LaunchedEffect(w, ready, scrollNonce) { if (ready && scrollTo != null) w?.evaluateJavascript("scrollToId('${scrollTo.replace("'", "")}')", null) }
     LaunchedEffect(w, ready, highlights) {
