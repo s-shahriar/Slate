@@ -317,7 +317,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 }
             }
             item(key = "written-data") {
-                UtilityCard("Data", "লিখিত পরীক্ষার তথ্য সংকলন", nav.onWritten, Modifier.fillMaxWidth())
+                UtilityCard("Data", "অর্থনীতি, রেমিট্যান্স, মূল্যস্ফীতি, দারিদ্র্য, রপ্তানি ও জ্বালানির ডেটা — টেবিল ও চার্টে", nav.onWritten, Modifier.fillMaxWidth())
             }
             item(key = "written-focus") {
                 UtilityCard("Focus", "ফোকাস রাইটিং — ৬ গ্রুপের ভূমিকা, উক্তি, উপসংহার ও পয়েন্ট ব্যাংক", nav.onFocus, Modifier.fillMaxWidth())

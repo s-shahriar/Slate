@@ -135,28 +135,9 @@ class DataCardModel(val cat: String?, val serial: Int, val icon: String, val tit
     val haystack: String = SearchText.normalize(HtmlParser.plainText("$title $subtitle $body ${cat.orEmpty()} ${tip.orEmpty()}"))
 }
 
-/** "Written » Data": the reference cards (a figure and what it means), from the offline copy of General. */
+/** "Written » Data": the datasets page (content_blobs written/data), see [WrittenDataPage]. */
 @Composable
-fun WrittenDataScreen(vm: SlateViewModel, onBack: () -> Unit) {
-    val m = vm.module(ModuleId.GENERAL)
-    val state by m.content.state.collectAsState()
-    val content = (state as? ContentState.Ready)?.content
-    val dark = LocalPalette.current.isDark
-    val catNames = remember(content) { content?.writtenCategories.orEmpty().associate { it.getString("id") to it.getString("name") } }
-    val categories = remember(content, dark) {
-        content?.writtenCategories.orEmpty().map { it.getString("name") to TopicColors.parse(it.optString("color"), dark, Color.Gray) }
-    }
-    val cards = remember(content) {
-        content?.writtenCards.orEmpty().map { c ->
-            DataCardModel(
-                catNames[c.optString("category_id")], c.optInt("serial"), c.optString("icon"), c.optString("title"), c.optString("subtitle"),
-                c.optString("body"), c.optString("tip").takeIf { it.isNotEmpty() && !c.isNull("tip") },
-                c.optJSONArray("issues").strings(), c.optJSONArray("benefits").strings(),
-            )
-        }
-    }
-    DataCardsScreen("Written · Data", "যেকোনো টপিক খুঁজুন...", categories, cards, onBack)
-}
+fun WrittenDataScreen(vm: SlateViewModel, onBack: () -> Unit) = WrittenDataPage(vm, onBack)
 
 /** Category chips, search, and a list of reference cards. Shared by every card-based reference page. */
 @OptIn(ExperimentalMaterial3Api::class)

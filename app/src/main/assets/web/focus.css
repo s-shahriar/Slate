@@ -197,3 +197,34 @@ html:not([data-theme="dark"]) .fcw-page .fc-content .q2 { box-shadow: none; }
 [data-hand="left"] .fc-content .fix, [data-hand="left"] .fc-content .card, [data-hand="left"] .fc-content .q2,
 [data-hand="left"] .fc-content .box, [data-hand="left"] .ws-unit > .ws-html > * { padding-right: 14px; padding-left: 44px; }
 [data-hand="left"] .fc-content .sec .sech, [data-hand="left"] .fc-content .chart .ct { padding-right: 0; padding-left: 32px; }
+
+/* ── Written » Data page (scripts/sync-data-page.mjs): one .sec per dataset ───── */
+.fc-content .dp-sec { padding: 14px 16px 12px; margin-bottom: 20px; border-top: 3px solid var(--fc); }
+.fc-content .dp-sec .sech { font-size: 16px; color: var(--text); gap: 10px; flex-wrap: nowrap; align-items: flex-start; line-height: 1.45; }
+.fc-content .dp-n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--fc) 16%, transparent); color: var(--fc); font-size: 13px; }
+.fc-content .dp-bn { color: var(--fc); font-weight: 600; font-size: 14px; margin: 2px 0 10px 36px; }
+.fc-content .dp-body.has-chart { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.fc-content .dp-body .chart { margin: 6px 0 0; box-shadow: none; }
+.fc-content .dp-body .chart svg { display: block; max-width: 420px; margin: 0 auto; }
+.fc-content table.dpt { width: 100%; margin: 6px 0 8px; font-size: 14px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-md); }
+.fc-content table.dpt th { background: color-mix(in srgb, var(--fc) 12%, var(--surface)); color: var(--text); font-weight: 700; font-size: 13px; }
+.fc-content table.dpt td, .fc-content table.dpt th { border: 0; border-bottom: 1px solid var(--border); padding: 8px 12px; }
+.fc-content table.dpt tr:last-child td { border-bottom: 0; }
+.fc-content table.dpt td:not(:first-child), .fc-content table.dpt th:not(:first-child) { text-align: right; }
+.fc-content table.dpt td b { color: var(--text); font-variant-numeric: tabular-nums; }
+.fc-content table.dpt tr.hl-row td { background: color-mix(in srgb, var(--imp) 14%, transparent); }
+.fc-content .dp-cap { font-weight: 700; font-size: 13px; color: var(--fc); margin: 12px 0 2px; }
+.fc-content .dp-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.65;
+  background: color-mix(in srgb, var(--fc) 8%, transparent); border-left: 3px solid var(--fc); }
+.fc-content .dp-note ul { margin: 4px 0 0; padding-left: 18px; }
+.fc-content .dp-src { margin-top: 8px; text-align: right; font-size: 12px; color: var(--text-3); }
+@media (max-width: 720px) {
+  .fc-content .dp-body.has-chart { grid-template-columns: 1fr; gap: 8px; }
+  /* Data tables stay real tables on a phone (Focus pages stack theirs into cards). */
+  .fc-content table.dpt { display: table; background: var(--surface); border-radius: 10px; margin: 6px 0 8px; font-size: 14px; }
+  .fc-content table.dpt tbody { display: table-row-group; }
+  .fc-content table.dpt tr, .fc-content table.dpt tr:first-child:has(th) { display: table-row; background: transparent; border: 0; padding: 0; margin: 0; }
+  .fc-content table.dpt td, .fc-content table.dpt th { display: table-cell; width: auto; padding: 7px 10px; line-height: 1.5; }
+  .fc-content table.dpt td:first-child { font-weight: 400; color: var(--text-2) !important; font-size: 14px; margin: 0; }
+}
