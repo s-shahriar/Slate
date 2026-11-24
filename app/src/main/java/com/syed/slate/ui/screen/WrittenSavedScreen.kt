@@ -87,7 +87,7 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
         val names = content?.groups?.flatMap { g -> g.topics.map { (g.key + "/" + it.slug) to it.name } }?.toMap().orEmpty()
         val qs = content?.allItems()?.filter { it.uid != null && (it.group == "wgk" || it.group == "wfin") }?.map { item ->
             WrittenUnit(item.uid!!, item.group, item.topic, names["${item.group}/${item.topic}"] ?: item.topic, 0, "qa",
-                item.question, item.data.optString("answer"), "")
+                item.question, item.data.optString("correct_answer_text"), "")
         }?.toList().orEmpty()
         WrittenIndex.units(m.blobs).filter { it.sec == "focus" } + qs
     }

@@ -60,7 +60,11 @@ val Item.subsegment: String? get() = data.optString("subsegment").takeIf { it.is
 val Item.verdict: String? get() = data.optString("verdict").takeIf { it.isNotEmpty() && !data.isNull("verdict") }
 val Item.headerCode: String? get() = data.optString("headerCode").takeIf { it.isNotEmpty() && !data.isNull("headerCode") }
 val Item.headerCodeLang: String? get() = data.optString("headerCodeLang").takeIf { it.isNotEmpty() }
-val Item.answer: JSONObject? get() = data.optJSONObject("answer")
+val Item.answer: JSONObject? get() =
+    // General's short-answer rows (Written » GK / Financial) keep the answer in correct_answer_text; read it from the row
+    // itself (not a cached derived field), so items downloaded by any app version show it.
+    if (group in LongForm.shortAnswer) data.optString("correct_answer_text").takeIf { it.isNotBlank() && it != "null" }?.let { JSONObject().put("answer", it) }
+    else data.optJSONObject("answer")
 
 /** A line of a question, as the web renders it: paragraph, hanging-indent list item, or a gap between blocks. */
 sealed interface QBlock {
