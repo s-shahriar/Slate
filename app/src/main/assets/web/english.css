@@ -59,6 +59,21 @@
   font-style: italic;
 }
 .en-ex .en-hl, .en-ex .en-key { font-style: normal; }
+/* In an example line the marked word is the thing to spot, and the line is short: a light box reads faster there than a
+   squiggle. Rule lines keep the squiggle, which marks a word without breaking the sentence's flow. */
+.en-ex .en-hl {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  border-radius: 5px;
+  padding: 0 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+[data-theme="dark"] .en-ex .en-hl {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
 
 /* Tables: word tables must fit a phone, so no 400px floor. */
 .en-table-wrap { overflow-x: auto; }
