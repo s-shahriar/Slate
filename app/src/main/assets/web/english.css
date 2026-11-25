@@ -11,15 +11,17 @@
 .en-card-body > * + * { margin-top: 8px; }
 .en-p { margin: 0; }
 
-/* Notebook marks: a soft marker stroke in the theme colour (not a loud yellow), and an outlined key word. */
+/* Notebook marks: the key part of a rule or example gets a squiggly underline in the theme colour (no background
+   fill, so it never looks like the tap-to-highlight marks), and an outlined key word. */
 .en-hl {
   color: var(--text);
   font-weight: 600;
-  background: linear-gradient(transparent 52%, color-mix(in srgb, var(--accent) 24%, transparent) 52%);
-  border-radius: 2px;
-  padding: 0 2px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  background: transparent; /* a <mark>: drop the browser's yellow */
+  padding: 0;
+  text-decoration: underline wavy color-mix(in srgb, var(--accent) 80%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
 }
 .en-key {
   color: var(--text);
@@ -30,14 +32,11 @@
   padding: 0 7px;
   white-space: nowrap;
 }
-/* On a dark card a half-height stroke at low alpha disappears: fill the whole word with a warmer tint, tint the text
-   with the accent and underline it, so a mark reads at a glance without glaring. */
+/* Dark cards: the same squiggle, a little brighter so it reads on the dark ground. */
 [data-theme="dark"] .en-hl {
-  color: color-mix(in srgb, var(--accent) 55%, var(--text));
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 75%, transparent);
-  border-radius: 3px;
-  padding: 0 3px;
+  color: var(--text);
+  background: transparent;
+  text-decoration-color: color-mix(in srgb, var(--accent) 95%, white);
 }
 [data-theme="dark"] .en-key {
   color: color-mix(in srgb, var(--accent) 55%, var(--text));

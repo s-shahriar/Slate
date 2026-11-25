@@ -88,6 +88,8 @@ fun LongCard(
                     .border(1.dp, primary.copy(alpha = .25f), MaterialTheme.shapes.medium).clickable { revealed = true }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) { Text("উত্তর দেখতে চাপো", style = MaterialTheme.typography.bodyMedium, color = p.text3) }
+            // With the eye on, a tap on the shown answer covers it again (tap ↔ untap).
+            else if (cover) Box(Modifier.fillMaxWidth().clickable { revealed = false }) { WrittenBody(a, uid = item.uid) }
             else WrittenBody(a, uid = item.uid)
         }
         else item.answer?.let { a ->

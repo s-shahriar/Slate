@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Visibility
 import com.syed.slate.ui.component.SlateDropdown
 import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.layout.Arrangement
@@ -76,6 +78,8 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
     val list = rememberLazyListState()
     val uiScope = rememberCoroutineScope()
     var openCards by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // Eye (cover mode) when the list holds short-answer questions (Written » GK / Financial), like the reader.
+    var cover by rememberSaveable { mutableStateOf(false) }
 
     val scope = remember(content, group) {
         content?.groups?.filter { group == "all" || it.key == group }.orEmpty()
@@ -99,6 +103,13 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
             SlateTopBar(
                 title = { BarTitle("$title · ${saved.size}", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = {
+                    if (saved.any { it.group in LongForm.shortAnswer }) IconButton(onClick = { cover = !cover }) {
+                        Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            if (cover) "Show answers" else "Cover answers",
+                            tint = if (cover) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -140,7 +151,7 @@ fun SavedScreen(vm: SlateViewModel, id: ModuleId, kind: PoolSet, group: String, 
                 if (LongForm.isLongForm(item)) {
                     val key = item.uid ?: item.id
                     LongCard(item, null, key in openCards, item.uid?.let(flags::get) ?: Flag(), m.progress,
-                        onToggle = { openCards = if (key in openCards) openCards - key else openCards + key }, topicLabel = label)
+                        onToggle = { openCards = if (key in openCards) openCards - key else openCards + key }, topicLabel = label, cover = cover)
                 } else {
                     StudyCard(id, item, item.uid?.let(flags::get) ?: Flag(), m.progress, topicLabel = label, number = first + i + 1)
                 }

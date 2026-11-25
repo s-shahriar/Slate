@@ -1,5 +1,7 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -98,6 +100,9 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
     val frozen = remember(all) { all.filter { saved(it.uid) }.map { it.uid }.toSet() }
     val shown = all.filter { it.uid in frozen || saved(it.uid) }
     var sec by remember { mutableStateOf("all") }
+    // Eye (cover mode): answers covered; a tap shows one, another tap covers it again.
+    var cover by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var shownAns by remember(cover) { mutableStateOf(setOf<String>()) }
     val list = shown.filter { sec == "all" || it.sec == sec }
     val groups = list.groupBy { it.pageRoute }.toList()
 
@@ -106,6 +111,13 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
             SlateTopBar(
                 title = { BarTitle(if (nailedMode) "Written · Nailed" else "Written · Important", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                actions = {
+                    IconButton(onClick = { cover = !cover }) {
+                        Icon(if (cover) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            if (cover) "Show answers" else "Cover answers",
+                            tint = if (cover) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -149,7 +161,15 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
                         Column(Modifier.weight(1f).padding(top = 4.dp)) {
                             if (u.kind == "qa") {
                                 Text(u.q, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                                Text(u.a, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium, color = p.text2)
+                                val hidden = cover && u.uid !in shownAns
+                                Text(
+                                    if (hidden) "উত্তর দেখতে চাপো" else u.a,
+                                    Modifier.padding(top = 6.dp).fillMaxWidth().clip(MaterialTheme.shapes.small)
+                                        .background(p.primaryContainer.copy(alpha = .45f))
+                                        .then(if (cover) Modifier.clickable { shownAns = if (u.uid in shownAns) shownAns - u.uid else shownAns + u.uid } else Modifier)
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.bodyMedium, color = if (hidden) p.text3 else p.text2,
+                                )
                             } else {
                                 Text(u.text, style = MaterialTheme.typography.bodyMedium, maxLines = 8, overflow = TextOverflow.Ellipsis)
                             }
