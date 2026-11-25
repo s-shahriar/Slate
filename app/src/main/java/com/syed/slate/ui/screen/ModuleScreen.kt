@@ -342,11 +342,11 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
             item(key = "written-gk") {
                 val n = content.groups.firstOrNull { it.key == "wgk" }
-                WrittenEntry(Icons.Filled.Public, 6, "GK", n?.let { "${it.count}টি প্রশ্নোত্তর · ${it.topics.size}টি বিষয়" } ?: "লিখিত সাধারণ জ্ঞান") { onSelect("wgk") }
+                WrittenEntry(Icons.Filled.Public, 6, "GK", n?.let { "${bnN(it.count)}টি প্রশ্নোত্তর · ${bnN(it.topics.size)}টি বিষয়" } ?: "লিখিত সাধারণ জ্ঞান") { onSelect("wgk") }
             }
             item(key = "written-finance") {
                 val n = content.groups.firstOrNull { it.key == "wfin" }
-                WrittenEntry(Icons.Filled.AccountBalance, 3, "Financial", n?.let { "পূর্ণরূপ ও সংখ্যা-শিট · ${it.count}টি" } ?: "ফিন্যান্স ও ব্যাংকিং") { onSelect("wfin") }
+                WrittenEntry(Icons.Filled.AccountBalance, 3, "Financial", n?.let { "পূর্ণরূপ ও সংখ্যা-শিট · ${bnN(it.count)}টি" } ?: "ফিন্যান্স ও ব্যাংকিং") { onSelect("wfin") }
             }
         } else if (inUtility) {
             item(key = "tool-math") {
@@ -600,16 +600,19 @@ private fun Action(icon: ImageVector, label: String, count: Int?, color: Color, 
     }
 }
 
+private fun bnN(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪৫৬৭৮৯"[it - '0'] else it }.joinToString("")
+
 /** Written's Nailed / Important tile: tinted in its colour, icon coin, big count, "saved · দেখো ›" footer (the web's action cards). */
 @Composable
 private fun SavedTile(icon: ImageVector, label: String, count: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalPalette.current
     Column(
-        modifier.clip(RoundedCornerShape(20.dp)).background(color.copy(alpha = if (p.isDark) .16f else .10f))
-            .border(1.dp, color.copy(alpha = .28f), RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
+        // Theme surface and outline like the entry cards below; only the icon carries the Nailed / Important colour.
+        modifier.clip(RoundedCornerShape(20.dp)).background(p.surface)
+            .border(1.dp, p.outline, RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(color.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(color.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
             Icon(icon, null, Modifier.size(20.dp), tint = color)
         }
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -617,8 +620,8 @@ private fun SavedTile(icon: ImageVector, label: String, count: Int, color: Color
             Text(label, style = MaterialTheme.typography.titleSmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("দেখো", style = MaterialTheme.typography.labelMedium, color = color, modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = color)
+            Text("দেখো", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = p.text3)
         }
     }
 }

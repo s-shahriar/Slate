@@ -240,12 +240,14 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Icon(Icons.Filled.CalendarMonth, null, Modifier.size(18.dp), tint = p.primary)
                             Spacer(Modifier.width(8.dp))
-                            Text(day.long(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            // The date yields width (ellipsis) so the TODAY chip never wraps to one letter per line.
+                            Text(day.long(), Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (day == today) {
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     "TODAY", Modifier.clip(RoundedCornerShape(50)).background(p.primaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
                                     style = MaterialTheme.typography.labelSmall, color = p.onPrimaryContainer, fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 1, softWrap = false,
                                 )
                             }
                         }
