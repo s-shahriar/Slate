@@ -230,7 +230,7 @@ class ProgressRepository(
                 } else {
                     val wait = backoff[minOf(attempt++, backoff.lastIndex)]
                     _attempts.value = attempt
-                    _lastError.value = failure?.message ?: "Couldn't reach the server"
+                    _lastError.value = com.syed.slate.core.friendlySyncError(failure)
                     _retryAt.value = System.currentTimeMillis() + wait
                     _phase.value = SyncPhase.RETRYING
                     delay(wait)

@@ -1,5 +1,9 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,7 +84,9 @@ object FocusIndex {
         fun secs(o: org.json.JSONObject) = o.getJSONArray("sections").let { a -> List(a.length()) { a.getJSONObject(it).let { s -> s.getString("id") to s.getString("label") } } }
         val u = p.getJSONObject("universal")
         val g = p.getJSONArray("groups")
+        val q = p.optJSONObject("quotes")
         return listOf(FocusTab("u", 0, u.getString("title"), "", u.getString("html"), secs(u))) +
+            (if (q != null) listOf(FocusTab("q", 0, q.getString("title"), "", q.getString("html"), secs(q))) else emptyList()) +
             List(g.length()) { i -> g.getJSONObject(i).let { o -> FocusTab(o.getString("id"), o.getInt("n"), o.getString("title"), o.getString("topics"), o.getString("html"), secs(o)) } }
     }
 
@@ -102,13 +108,13 @@ object FocusIndex {
 
 private fun groupColor(n: Int, dark: Boolean, accent: Color): Color = if (n == 0) accent else TopicColors.of(GROUP_TOPIC[n], dark)
 
-/** White reading ground in light mode, like the printed PDF; dark mode keeps the palette. */
+/** The module's own ground in both modes (the same warm beige as the Written hub in light mode). */
 @Composable
-private fun focusGround(): Color = if (LocalPalette.current.isDark) MaterialTheme.colorScheme.background else Color.White
+private fun focusGround(): Color = MaterialTheme.colorScheme.background
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun FocusHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> Unit, onData: () -> Unit) {
     val blobs = vm.module(ModuleId.GENERAL).blobs
     val ver by blobs.version.collectAsState()
     val tabs = remember(ver) { FocusIndex.tabs(blobs) }
@@ -133,29 +139,55 @@ fun FocusHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> 
             return@Scaffold
         }
         LazyColumn(Modifier.padding(pad), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item(key = "label") { Text("ফোকাস রাইটিং — গ্রুপ বেছে নাও", style = MaterialTheme.typography.labelLarge, color = p.text3, modifier = Modifier.padding(bottom = 4.dp)) }
-            items(tabs, key = { it.id }) { t ->
-                val c = groupColor(t.n, dark, MaterialTheme.colorScheme.primary)
-                Row(
-                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface)
-                        .border(1.dp, p.outline, MaterialTheme.shapes.medium).clickable { onOpen(t.id) }.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Box(Modifier.size(44.dp).clip(MaterialTheme.shapes.small).background(c.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
-                        Icon(GROUP_ICON[t.n], null, Modifier.size(22.dp), tint = c)
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(t.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            if (t.n == 0) "ভূমিকা, উক্তি ও উপসংহারের ছাঁচ" else "${bn(t.topics.split('·').size)}টি টপিক",
-                            style = MaterialTheme.typography.labelMedium, color = p.text3,
-                        )
-                    }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
+            // Two parts like the web: the pages every group shares (framework, quotes, Data), then the six groups.
+            item(key = "label-common") { FocusLabel("সব গ্রুপের জন্য") }
+            items(tabs.filter { it.n == 0 }, key = { it.id }) { t ->
+                FocusEntry(if (t.id == "q") Icons.Filled.FormatQuote else GROUP_ICON[0],
+                    if (t.id == "q") TopicColors.of(6, dark) else MaterialTheme.colorScheme.primary, t.title, null) { onOpen(t.id) }
+            }
+            item(key = "data") { FocusEntry(Icons.Filled.Storage, TopicColors.of(8, dark), "ডাটা", null, onData) }
+            item(key = "label-groups") {
+                Column(Modifier.padding(top = 18.dp)) {
+                    androidx.compose.material3.HorizontalDivider(color = p.outline)
+                    Spacer(Modifier.height(14.dp))
+                    FocusLabel("গ্রুপ")
                 }
+            }
+            items(tabs.filter { it.n > 0 }, key = { it.id }) { t ->
+                FocusEntry(GROUP_ICON[t.n], groupColor(t.n, dark, MaterialTheme.colorScheme.primary), t.title, "${bn(t.topics.split('·').size)}টি টপিক") { onOpen(t.id) }
             }
         }
     }
+}
+
+@Composable
+private fun FocusLabel(text: String) = Text(text, style = MaterialTheme.typography.labelLarge, color = LocalPalette.current.text3, modifier = Modifier.padding(bottom = 4.dp))
+
+@Composable
+private fun FocusEntry(icon: ImageVector, c: Color, title: String, sub: String?, onClick: () -> Unit) {
+    val p = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface)
+            .border(1.dp, p.outline, MaterialTheme.shapes.medium).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(44.dp).clip(MaterialTheme.shapes.small).background(c.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(22.dp), tint = c)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (sub != null) Text(sub, style = MaterialTheme.typography.labelMedium, color = p.text3)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
+    }
+}
+
+/** A page's section jumps as one dropdown (a phone can't fit a dozen chips); the native picker scrolls via controller.js. */
+internal fun jumpSelect(sections: List<Pair<String, String>>): String = buildString {
+    if (sections.isEmpty()) return@buildString
+    append("""<select class="fc-jump-sel" aria-label="অংশে যাও" onchange="if(this.value)scrollToId(this.value);this.selectedIndex=0"><option value="">অংশ বেছে নাও…</option>""")
+    sections.forEach { (sid, label) -> append("""<option value="$sid">${esc(label)}</option>""") }
+    append("</select>")
 }
 
 private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -205,9 +237,8 @@ fun FocusGroupScreen(vm: SlateViewModel, id: String, onBack: () -> Unit, onSwitc
             buildString {
                 append("""<div style="--fc:$topicVar" data-gid="${tab.id}"><header class="fc-head" id="fc-top"><h1 class="fc-title">${esc(tab.full)}</h1>""")
                 if (tab.topics.isNotEmpty()) append("""<p class="fc-topics">${esc(tab.topics)}</p>""")
-                else append("""<p class="fc-topics">যেকোনো ফোকাসের ভূমিকা, উক্তি ও উপসংহারের সার্বজনীন ছাঁচ</p>""")
                 append("""<div class="fc-jumps">""")
-                tab.sections.forEach { (sid, label) -> append("""<button class="fc-jump" onclick="scrollToId('$sid')">${esc(label)}</button>""") }
+                append(jumpSelect(tab.sections))
                 append("""</div></header><article class="fc-content">""").append(tab.html).append("</article></div>")
             }
         }

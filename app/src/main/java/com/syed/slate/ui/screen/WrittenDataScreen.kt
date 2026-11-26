@@ -232,20 +232,3 @@ private fun Effects(label: String, icon: ImageVector, color: Color, items: List<
 }
 
 /** General » Utility » ফিনান্সিয়াল টার্ম: reference cards in categories, from the General project's `content_blobs`. */
-@Composable
-fun FinancialTermsScreen(onBack: () -> Unit) {
-    val ctx = LocalContext.current
-    val p = LocalPalette.current
-    val fallback = p.text3
-    val blobs = (ctx.applicationContext as com.syed.slate.SlateApp).module(com.syed.slate.backend.ModuleId.GENERAL).blobs
-    val ver by blobs.version.collectAsState()
-    val (categories, cards) = remember(p.isDark, ver) {
-        val root = blobs.payload("utility", "finance") ?: return@remember emptyList<Pair<String, androidx.compose.ui.graphics.Color>>() to emptyList<DataCardModel>()
-        val cats = root.getJSONArray("categories").let { a -> List(a.length()) { a.getJSONObject(it).let { o -> o.getString("name") to TopicColors.parse(o.optString("color"), p.isDark, fallback) } } }
-        val cs = root.getJSONArray("cards").let { a ->
-            List(a.length()) { i -> a.getJSONObject(i).let { o -> DataCardModel(o.optString("cat"), o.getInt("id"), o.optString("icon"), o.getString("title"), o.optString("subtitle"), o.getString("body"), null, emptyList(), emptyList()) } }
-        }
-        cats to cs
-    }
-    DataCardsScreen("ফিনান্সিয়াল টার্ম", "যেকোনো টার্ম খুঁজুন...", categories, cards, onBack)
-}

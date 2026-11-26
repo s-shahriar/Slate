@@ -141,7 +141,7 @@ class TrashRepository(
                             synchronized(lock) { queue.remove(mapOf(id to op)); persist() }
                             _error.value = "Only the owner account can delete or restore questions."
                         }
-                        else -> { transient = true; _failure.value = failure?.message ?: "Couldn't reach the server" }
+                        else -> { transient = true; _failure.value = com.syed.slate.core.friendlySyncError(failure) }
                     }
                 }
                 if (!transient) { attempt = 0; continue }

@@ -44,7 +44,6 @@ import com.syed.slate.ui.screen.BinScreen
 import com.syed.slate.ui.screen.EquationImportantScreen
 import com.syed.slate.ui.screen.EquationScreen
 import com.syed.slate.ui.screen.SqlLessonScreen
-import com.syed.slate.ui.screen.FinancialTermsScreen
 import com.syed.slate.ui.screen.HomeScreen
 import com.syed.slate.ui.screen.MathFormulasScreen
 import com.syed.slate.ui.screen.EnglishNotesScreen
@@ -149,7 +148,6 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
                         onPractice = { cat -> nav.navigate("practice/$cat") },
                         onPracticeImportant = { nav.navigate("practiceimp") },
                         onMath = { nav.navigate("math") },
-                        onFinance = { nav.navigate("finance") },
                         onEnglish = { nav.navigate("english") },
                         onEquation = { t -> nav.navigate("equation/$t") },
                         onEquationImportant = { nav.navigate("equation_important") },
@@ -228,7 +226,6 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
         composable("math") { Themed(Scope.GENERAL, ModuleId.GENERAL) { MathFormulasScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("english") { Themed(Scope.GENERAL, ModuleId.GENERAL) { EnglishNotesScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("admin") { Themed(Scope.GENERAL, ModuleId.GENERAL) { AdminScreen(vm, onBack = { nav.popBackStack() }) } }
-        composable("finance") { Themed(Scope.GENERAL) { FinancialTermsScreen(onBack = { nav.popBackStack() }) } }
         composable("equation/{t}") { e -> Themed(Scope.ICT, ModuleId.ICT) { EquationScreen(vm, e.arg("t"), onBack = { nav.popBackStack() }, onSwitchTopic = { nt -> nav.replace("equation/$nt") }) } }
         composable("equation_important") { Themed(Scope.ICT, ModuleId.ICT) { EquationImportantScreen(vm, onBack = { nav.popBackStack() }) } }
         composable("sql/{l}") { e ->
@@ -244,7 +241,7 @@ fun SlateNav(vm: SlateViewModel, dark: Boolean, activity: Activity) {
             Themed(Scope.ICT) { PracticeImportantScreen(vm, onBack = { nav.popBackStack() }) }
         }
         composable("focus") {
-            Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusHomeScreen(vm, onBack = { nav.popBackStack() }, onOpen = { g -> nav.navigate("focus/$g") }) }
+            Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusHomeScreen(vm, onBack = { nav.popBackStack() }, onOpen = { g -> nav.navigate("focus/$g") }, onData = { nav.navigate("written/${ModuleId.GENERAL.key}") }) }
         }
         composable("focus/{g}") { e ->
             Themed(Scope.GENERAL, ModuleId.GENERAL) { FocusGroupScreen(vm, e.arg("g"), onBack = { nav.popBackStack() }, onSwitch = { g -> nav.replace("focus/$g") }, onOpenTopic = { t -> nav.navigate("focus/$t") }) }

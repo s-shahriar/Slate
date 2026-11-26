@@ -277,7 +277,7 @@ fun RoutineScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
                             session == null -> "Not signed in — the plan stays on this phone until you sign in (Settings)"
                             !online && pendingCount > 0 -> "Offline — $pendingCount change${if (pendingCount == 1) "" else "s"} saved here, will sync"
                             pendingCount > 0 -> "Syncing $pendingCount change${if (pendingCount == 1) "" else "s"}…"
-                            else -> "Couldn't reach the server: $failure"
+                            else -> "$failure"
                         },
                         style = MaterialTheme.typography.labelMedium, color = p.warn,
                     )

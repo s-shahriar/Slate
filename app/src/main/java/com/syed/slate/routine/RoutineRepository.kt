@@ -264,7 +264,7 @@ class RoutineRepository(
                 synchronized(lock) { opts.values.filter { it.expired() }.map { it.id } }.let { if (it.isNotEmpty()) queueOpts(emptyList(), it) }
                 _failure.value = null
             }
-            .onFailure { _failure.value = it.message ?: "Couldn't load the routine" }
+            .onFailure { _failure.value = com.syed.slate.core.friendlySyncError(it, "Couldn't load the routine") }
         kick()
     }
 
@@ -302,7 +302,7 @@ class RoutineRepository(
                         persist()
                     }
                 } else {
-                    _failure.value = failure.message ?: "Couldn't reach the server"
+                    _failure.value = com.syed.slate.core.friendlySyncError(failure)
                     delay(backoff[minOf(attempt++, backoff.lastIndex)])
                 }
             }

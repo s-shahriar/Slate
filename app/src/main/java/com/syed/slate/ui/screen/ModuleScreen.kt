@@ -1,5 +1,6 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
@@ -132,7 +133,6 @@ class ModuleNav(
     val onPractice: (String) -> Unit,
     val onPracticeImportant: () -> Unit,
     val onMath: () -> Unit,
-    val onFinance: () -> Unit,
     val onEquation: (String) -> Unit,
     val onEquationImportant: () -> Unit = {},
     val onSql: (String) -> Unit = {},
@@ -318,7 +318,6 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                     }
                     Column {
                         Text("Written", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("লিখিত পরীক্ষার প্রস্তুতি — ডেটা, ফোকাস, GK ও ফিন্যান্স", style = MaterialTheme.typography.bodySmall, color = p.text3)
                     }
                 }
             }
@@ -334,9 +333,6 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             item(key = "written-label") {
                 Text("বিষয় বেছে নাও", Modifier.padding(top = 6.dp, start = 2.dp), style = MaterialTheme.typography.labelLarge, color = p.text3)
             }
-            item(key = "written-data") {
-                WrittenEntry(Icons.Filled.BarChart, 8, "Data", "টেবিল ও চার্টে ১২টি ডেটাসেট", nav.onWritten)
-            }
             item(key = "written-focus") {
                 WrittenEntry(Icons.Filled.EditNote, 2, "Focus", "৬ গ্রুপ · ভূমিকা, উক্তি, উপসংহার", nav.onFocus)
             }
@@ -349,15 +345,17 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 WrittenEntry(Icons.Filled.AccountBalance, 3, "Financial", n?.let { "পূর্ণরূপ ও সংখ্যা-শিট · ${bnN(it.count)}টি" } ?: "ফিন্যান্স ও ব্যাংকিং") { onSelect("wfin") }
             }
         } else if (inUtility) {
-            item(key = "tool-math") {
-                UtilityCard("গণিত সূত্র", "১২টি বিষয় — সম্পূর্ণ সূত্র সংকলন", nav.onMath, Modifier.fillMaxWidth())
+            // Same look as the Written page: a title block, then theme cards (icon coin, name, chevron).
+            item(key = "utility-hero") {
+                Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                        Icon(sectionIcon(id, UTILITY), null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Text("Utility", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                }
             }
-            item(key = "tool-finance") {
-                UtilityCard("ফিন্যান্সিয়াল টার্ম", "Important terms at a glance", nav.onFinance, Modifier.fillMaxWidth())
-            }
-            item(key = "tool-english") {
-                UtilityCard("English Grammar", "নিয়ম, উদাহরণ ও রূপান্তর", nav.onEnglish, Modifier.fillMaxWidth())
-            }
+            item(key = "tool-math") { WrittenEntry(Icons.Filled.Calculate, 4, "গণিত সূত্র", "", nav.onMath) }
+            item(key = "tool-english") { WrittenEntry(Icons.Filled.Translate, 9, "English Grammar", "", nav.onEnglish) }
         } else if (inPractice) {
             item(key = "practice-actions") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -540,7 +538,7 @@ private fun subModuleTitle(id: ModuleId, key: String): String = when (key) {
 private fun subModuleTagline(id: ModuleId, key: String): String? = when (key) {
     "bangla" -> "ধ্বনি, শব্দ, বাক্য ও অলংকার"; "english" -> "Grammar, usage & idioms"; "sahitya" -> "কবি, গ্রন্থ ও সাহিত্যের ইতিহাস"
     "gk" -> "Bangladesh, world & current affairs"; "livemcq" -> "Live-exam favourites by topic"; WRITTEN -> "Notes & written answers"
-    "vocab" -> "Words, meanings & usage"; UTILITY -> "Formulas & financial terms"
+    "vocab" -> "Words, meanings & usage"; UTILITY -> "Formulas & English grammar"
     "mcq" -> "Objective questions by topic"; "written" -> "Long answers & explanations"; "extra" -> "Extra questions & notes"
     "viva" -> "Oral questions & answers"; EQUATION -> "Cover & recall formulas"; PRACTICE -> "Linux & SQL command drills"; SQL -> "Subqueries step by step"
     else -> null
@@ -553,7 +551,7 @@ private fun SubModuleLauncher(id: ModuleId, content: ModuleContent, onOpen: (Str
     val groupKeys = content.groups.map { it.key }
     val keys: List<String> = if (id == ModuleId.GENERAL) {
         listOf("bangla", "english", "sahitya", "gk", "livemcq").filter { groupKeys.contains(it) } +
-            listOf(WRITTEN) + (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(UTILITY, ROUTINE)
+            (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(WRITTEN, UTILITY, ROUTINE)
     } else {
         listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE, SQL, ROUTINE)
     }
@@ -641,17 +639,8 @@ private fun WrittenEntry(icon: ImageVector, topic: Int, title: String, sub: Stri
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(sub, style = MaterialTheme.typography.labelMedium, color = p.text3, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
     }
 }
 
-@Composable
-private fun UtilityCard(title: String, sub: String, onClick: () -> Unit, modifier: Modifier) {
-    val p = LocalPalette.current
-    Column(modifier.clip(MaterialTheme.shapes.medium).background(p.primaryContainer).clickable(onClick = onClick).padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = p.onPrimaryContainer)
-        Text(sub, style = MaterialTheme.typography.labelMedium, color = p.onPrimaryContainer)
-    }
-}

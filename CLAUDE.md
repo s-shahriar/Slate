@@ -72,7 +72,7 @@ Three scopes in `ui/theme/Palette.kt`: `SHELL` (rust, the Slate home/settings), 
 2. ✅ Quiz core (works for General and ICT MCQ): topic mode select + pool chooser, MCQ quiz, study (paged, filters, search),
    exam (setup + run, two-tap stop), Nailed/Important lists, group search, notes, HTML rendering with offline images.
    Also done: LiveMCQ sub-topic switcher in Study, Written » Data page (cached offline, cache `version` upgrades old copies).
-   Also done: Utility pages (math formulas page, Financial Terms). Still to do for General: left/right-hand toggle, recycle bin.
+   Also done: Utility pages (math formulas page, English; Financial Terms removed 2026-11-26). Still to do for General: left/right-hand toggle, recycle bin.
 3. ✅ ICT Written/Extra/Viva reader (`ui/reader`, `ReaderScreen`): accordion cards, segments + sub-segments, hanging-indent
    questions, all answer blocks (code with highlighting, image, summary, points, ASCII diagram, table, mistakes, mnemonic,
    extended), search into answers with deep-link, flags/notes, resumable offline picture cache.
@@ -210,9 +210,9 @@ Each Supabase project has `content_blobs(kind, key, sort_order, payload jsonb, u
 a trigger bumps `updated_at`. `content/BlobRepository` caches the whole table in `filesDir/blobs_<module>.json` and refreshes by an
 `updated_at` probe (only changed rows are fetched) on module open / the Refresh button. The UI reads only the cache; a first launch
 needs a connection (no bundled fallback). Kinds: ICT `practice`, `equation` (data, unused by Slate), `web/equation_<topic>`, `sql_lesson` (data, unused by Slate), `web/sql_<topic>`;
-General `utility/finance`, `web/math`. `web/*` rows are the rendered pages the prerender tool publishes (`FormulaIndex`).
+General `utility/english`, `web/math`. `web/*` rows are the rendered pages the prerender tool publishes (`FormulaIndex`).
 Nothing under `assets/practice`, `assets/utility` or the `*.body.html` files exists any more; only css/js/fonts are bundled.
-Authoring: Practice + equation data via `ict-quiz/scripts/sync-static.mjs`, finance via `general-quiz/scripts/sync-static.mjs`,
+Authoring: Practice + equation data via `ict-quiz/scripts/sync-static.mjs`,
 rendered pages via the prerender tool. Slate's `equation.css`/`mathformulas.css` are adapted copies; the tool never overwrites them.
 
 ## Updater notes

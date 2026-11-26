@@ -124,12 +124,11 @@ fun WrittenSavedScreen(vm: SlateViewModel, nailedMode: Boolean, onBack: () -> Un
     ) { pad ->
         LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item(key = "chips") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(listOf("all" to "সব") + SECS, key = { it.first }) { (k, label) ->
-                        val n = shown.count { k == "all" || it.sec == k }
-                        FilterChip(selected = sec == k, onClick = { sec = k }, label = { Text("$label · ${bnW(n)}") })
-                    }
-                }
+                // Section filter as a dropdown (the app's rule: no sideways-scrolling chip rows).
+                com.syed.slate.ui.component.SlateDropdown(
+                    (listOf("all" to "সব") + SECS).map { (k, label) -> com.syed.slate.ui.component.DropOption(k, label, shown.count { k == "all" || it.sec == k }) },
+                    sec, { sec = it },
+                )
             }
             if (groups.isEmpty()) item(key = "empty") {
                 Text(
