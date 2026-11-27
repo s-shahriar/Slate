@@ -159,11 +159,7 @@ fun FocusHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> 
             }
             item(key = "data") { FocusEntry(Icons.Filled.Storage, TopicColors.of(8, dark), "ডাটা", null, onData) }
             item(key = "label-groups") {
-                Column(Modifier.padding(top = 18.dp)) {
-                    androidx.compose.material3.HorizontalDivider(color = p.outline)
-                    Spacer(Modifier.height(14.dp))
-                    FocusLabel("গ্রুপ")
-                }
+                Column(Modifier.padding(top = 14.dp)) { FocusLabel("গ্রুপ") }
             }
             items(tabs.filter { it.n > 0 }, key = { it.id }) { t ->
                 FocusEntry(GROUP_ICON[t.n], groupColor(t.n, dark, MaterialTheme.colorScheme.primary), t.title, "${bn(t.topics.split('·').size)}টি টপিক") { onOpen(t.id) }
@@ -173,7 +169,14 @@ fun FocusHomeScreen(vm: SlateViewModel, onBack: () -> Unit, onOpen: (String) -> 
 }
 
 @Composable
-private fun FocusLabel(text: String) = Text(text, style = MaterialTheme.typography.labelLarge, color = LocalPalette.current.text3, modifier = Modifier.padding(bottom = 4.dp))
+private fun FocusLabel(text: String) {
+    // The launcher's section heading: label + hairline.
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = p.text3)
+        Box(Modifier.weight(1f).height(1.dp).background(p.outline))
+    }
+}
 
 @Composable
 private fun FocusEntry(icon: ImageVector, c: Color, title: String, sub: String?, onClick: () -> Unit) {

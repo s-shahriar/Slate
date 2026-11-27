@@ -1,5 +1,8 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -194,13 +197,15 @@ fun ReaderScreen(
             ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                        leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Search in this topic") })
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(filter == ReaderFilter.ALL, { filter = ReaderFilter.ALL }, { Text("সব (${notNailed.size})") })
-                        FilterChip(filter == ReaderFilter.IMPORTANT, { filter = ReaderFilter.IMPORTANT }, { Text("Important ($importantCount)") })
-                        FilterChip(filter == ReaderFilter.WEAK, { filter = ReaderFilter.WEAK }, { Text("Weak ($weakCount)") })
-                    }
+                    com.syed.slate.ui.component.SlateSearchField(query, { query = it }, "Search in this topic")
+                    // সব / Important / Weak as the app's dropdown (like Study), not a chip row.
+                    com.syed.slate.ui.component.SlateDropdown(
+                        listOf(
+                            com.syed.slate.ui.component.DropOption(ReaderFilter.ALL, ReaderFilter.ALL.label, notNailed.size),
+                            com.syed.slate.ui.component.DropOption(ReaderFilter.IMPORTANT, ReaderFilter.IMPORTANT.label, importantCount),
+                            com.syed.slate.ui.component.DropOption(ReaderFilter.WEAK, ReaderFilter.WEAK.label, weakCount),
+                        ), filter, { filter = it },
+                    )
                 }
             }
             if (rows.isEmpty()) item {
@@ -217,13 +222,18 @@ fun ReaderScreen(
             }
             items(rows, key = { r -> r.lazyKey() }) { r ->
                 when (r) {
+                    // A segment: the card look of the topic rows, with a tinted folder coin to mark it as a group.
                     is ListRow.SegmentCard -> Row(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.primaryContainer).clickable { onSegment(r.name) }.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface)
+                            .border(1.dp, p.outline, MaterialTheme.shapes.large).clickable { onSegment(r.name) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(r.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = p.onPrimaryContainer)
-                        Text("${r.count}", style = MaterialTheme.typography.labelLarge, color = p.onPrimaryContainer)
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.onPrimaryContainer)
+                        Box(Modifier.size(38.dp).clip(MaterialTheme.shapes.small).background(MaterialTheme.colorScheme.primary.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Folder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Text(r.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                        Text("${r.count}", style = MaterialTheme.typography.labelLarge, color = p.text3)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
                     }
                     is ListRow.Label -> Text(r.text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                     is ListRow.Card -> LongCard(

@@ -591,7 +591,7 @@ private fun ManagePanel(
 
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (active != null) item(key = "import-bar") {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(p.surface).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(p.surface).border(1.dp, p.outline, RoundedCornerShape(18.dp)).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 val all = batches.orEmpty()
                 Text("${if (active === all.firstOrNull()) "Last import" else "Import"} · ${importWhen(active.at)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 val nc = importCats?.size ?: 0
@@ -662,7 +662,7 @@ private fun ManagePanel(
                     StudyCard(ModuleId.GENERAL, item, item.uid?.let { flags[it] } ?: Flag(), m.progress, number = start + i + 1, topicLabel = r.catName)
                 }
             } else {
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.surface).border(1.dp, p.outline, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetaChips(r, catalog, onMove, onSub, Modifier.fillMaxWidth())
                     Text(stripTags(r.question).take(220).ifEmpty { "(image-only)" }, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -123,7 +123,7 @@ fun QuizSession(
     Column(Modifier.fillMaxSize()) {
         HandMirror { Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-            Text(pill, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(pill, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (stoppable && !done && deck.isNotEmpty()) StopButton { done = true }
             LocalToggleHand.current?.let { toggle ->
                 IconButton(onClick = toggle) {

@@ -1,5 +1,11 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -98,7 +104,7 @@ fun ModeSelectScreen(
 
     // Always offered, like the web app: সব / Important / Weak / Nailed — disabled options show their zero counts.
     if (chooser) {
-        ModalBottomSheet(onDismissRequest = { chooser = false }) {
+        ModalBottomSheet(onDismissRequest = { chooser = false }, containerColor = MaterialTheme.colorScheme.background) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("কোন প্রশ্নগুলো থেকে পরীক্ষা দেবে?", style = MaterialTheme.typography.titleMedium)
                 PoolOption(Icons.Filled.Checklist, "সব প্রশ্ন", "পুরো টপিক থেকে", counts.getValue(PoolSet.ALL), p.info) { chooser = false; onQuiz(PoolSet.ALL) }
@@ -110,35 +116,41 @@ fun ModeSelectScreen(
     }
 }
 
+/** MCQ / Study entry, in the Written card look: hairline outline, tinted icon coin, name + count, chevron. */
 @Composable
 private fun ModeCard(icon: ImageVector, title: String, meta: String, enabled: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
+    val c = MaterialTheme.colorScheme.primary
     Row(
         Modifier.fillMaxWidth().alpha(if (enabled) 1f else .5f).clip(MaterialTheme.shapes.large).background(p.surface)
-            .clickable(enabled = enabled, onClick = onClick).padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .border(1.dp, p.outline, MaterialTheme.shapes.large).clickable(enabled = enabled, onClick = onClick).padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Icon(icon, null, Modifier.padding(4.dp), tint = MaterialTheme.colorScheme.primary)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(meta, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Box(Modifier.size(46.dp).clip(MaterialTheme.shapes.medium).background(c.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(24.dp), tint = c)
         }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(meta, style = MaterialTheme.typography.labelMedium, color = p.text3)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
     }
 }
 
+/** One pool in the "which questions" sheet: the same card look; an empty pool is dimmed and shows its 0. */
 @Composable
-private fun PoolOption(icon: ImageVector, title: String, sub: String, count: Int, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
+private fun PoolOption(icon: ImageVector, title: String, @Suppress("UNUSED_PARAMETER") sub: String, count: Int, color: androidx.compose.ui.graphics.Color, onClick: () -> Unit) {
     val p = LocalPalette.current
     Row(
-        Modifier.fillMaxWidth().alpha(if (count > 0) 1f else .45f).clip(MaterialTheme.shapes.medium).background(p.surface)
-            .clickable(enabled = count > 0, onClick = onClick).padding(14.dp),
+        Modifier.fillMaxWidth().alpha(if (count > 0) 1f else .45f).clip(RoundedCornerShape(16.dp)).background(p.surface)
+            .border(1.dp, p.outline, RoundedCornerShape(16.dp)).clickable(enabled = count > 0, onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Icon(icon, null, tint = color)
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            Text(if (count > 0) sub else "এখনো কোনো প্রশ্ন নেই", style = MaterialTheme.typography.bodySmall, color = p.text3)
+        Box(Modifier.size(40.dp).clip(CircleShape).background(color.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(20.dp), tint = color)
         }
-        Text("$count", style = MaterialTheme.typography.titleMedium, color = color)
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        Text("$count", Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = .14f)).padding(horizontal = 10.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = color)
     }
 }

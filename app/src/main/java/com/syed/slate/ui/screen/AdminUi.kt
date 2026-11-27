@@ -198,7 +198,7 @@ internal fun AdminModal(
     val p = LocalPalette.current
     Dialog(onDismissRequest = { if (!busy) onCancel() }) {
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.surface).padding(22.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.surface).border(1.dp, p.outline, RoundedCornerShape(24.dp)).padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(Modifier.size(54.dp).clip(CircleShape).background(iconTint.copy(alpha = .16f)), contentAlignment = Alignment.Center) {

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -116,6 +117,20 @@ fun SlateMenuItem(
             if (selected) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = accent)
         }
     }
+}
+
+/** The app's search box: same corners and hairline as the dropdown field, accent border while typing. */
+@Composable
+fun SlateSearchField(query: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    androidx.compose.material3.OutlinedTextField(
+        query, onChange, modifier.fillMaxWidth(), singleLine = true, shape = DropShape,
+        leadingIcon = { Icon(Icons.Filled.Search, null, tint = p.text3) }, placeholder = { Text(placeholder, color = p.text3) },
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = p.surface, unfocusedContainerColor = p.surface,
+            unfocusedBorderColor = p.outline, focusedBorderColor = MaterialTheme.colorScheme.primary,
+        ),
+    )
 }
 
 /** A small caption row inside a [SlateMenu] (e.g. "SET A"). */

@@ -149,7 +149,8 @@ fun ExamConfigScreen(vm: SlateViewModel, id: ModuleId, initialGroup: String?, on
         // under it, full width, so nothing on the screen is left ragged against the edge.
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).padding(16.dp),
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface)
+                    .border(1.dp, p.outline, MaterialTheme.shapes.large).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 if (groups.size > 1) Dropdown(

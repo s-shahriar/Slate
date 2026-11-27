@@ -64,7 +64,6 @@ fun HomeScreen(vm: SlateViewModel, dark: Boolean, onModule: (ModuleId) -> Unit, 
                     }
                     Column(Modifier.weight(1f)) {
                         Text("Slate", style = MaterialTheme.typography.displaySmall)
-                        Text("Sharpen your preparation", style = MaterialTheme.typography.bodyMedium, color = LocalPalette.current.text3)
                     }
                     IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, "Settings") }
                 }

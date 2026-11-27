@@ -1,5 +1,6 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -334,17 +335,8 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                     val saved = practiceFlags.values.count { it.important }
                     val weak = practiceFlags.values.count { it.important && it.weak }
                     SavedTile(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onPracticeImportant() }
-                    Column(
-                        Modifier.weight(1f).clip(MaterialTheme.shapes.medium).background(p.warn.copy(alpha = .12f))
-                            .border(1.dp, p.warn.copy(alpha = .35f), MaterialTheme.shapes.medium).padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Icon(Icons.Filled.LocalFireDepartment, null, Modifier.size(16.dp), tint = p.warn)
-                            Text("Weak", style = MaterialTheme.typography.labelSmall)
-                        }
-                        Text("$weak", style = MaterialTheme.typography.titleLarge, color = p.warn)
-                    }
+                    // Weak drills live inside the Important list (marked there), so this tile opens it too.
+                    SavedTile(Icons.Filled.LocalFireDepartment, "Weak", weak, p.warn, Modifier.weight(1f)) { nav.onPracticeImportant() }
                 }
             }
             items(practiceCats, key = { it.id }) { c ->
@@ -433,17 +425,13 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                     }
                 }
             }
-            item(key = "search") {                OutlinedTextField(
-                    query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                    leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Search ${group?.title ?: ""}") },
-                )
-            }
+            item(key = "search") { com.syed.slate.ui.component.SlateSearchField(query, { query = it }, "Search ${group?.title ?: ""}") }
             if (tokens.isNotEmpty()) {
                 item(key = "hits") { Text("${hits.size} results", style = MaterialTheme.typography.labelMedium, color = p.text3) }
                 val pages = maxOf(1, (hits.size + SEARCH_PAGE - 1) / SEARCH_PAGE)
                 items(hits.drop(page.coerceAtMost(pages - 1) * SEARCH_PAGE).take(SEARCH_PAGE), key = { it.id }) { hit ->
                     Column(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onSearchHit(hit) }.padding(16.dp),
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large).clickable { nav.onSearchHit(hit) }.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(topicNames[hit.topic] ?: hit.topic, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -456,14 +444,8 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 // LiveMCQ Admin, for the owner only: import / classify / manage the section's questions.
                 if (id == ModuleId.GENERAL && section == "livemcq" && owner) {
                     item(key = "admin") {
-                        Row(
-                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.primaryContainer)
-                                .clickable { nav.onAdmin() }.padding(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("LiveMCQ Admin", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = p.onPrimaryContainer)
-                            Text("import · classify · manage", style = MaterialTheme.typography.labelSmall, color = p.onPrimaryContainer)
-                        }
+                        // The Written entry look (icon coin, name, chevron), not a filled block.
+                        WrittenEntry(Icons.Filled.AdminPanelSettings, 1, "LiveMCQ Admin", "", nav.onAdmin)
                     }
                 }
                 items(group?.topics.orEmpty(), key = { it.key }) { t ->

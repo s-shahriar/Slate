@@ -1,5 +1,9 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -94,10 +98,16 @@ fun BinScreen(vm: SlateViewModel, id: ModuleId, onBack: () -> Unit) {
             failure?.let { Text("Couldn't load the bin: $it", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             if (!online) Text("Offline — only changes made on this phone are listed.", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = p.warn)
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (entries.isEmpty() && !loading) item { Text("The recycle bin is empty.", style = MaterialTheme.typography.bodyLarge, color = p.text3) }
+                if (entries.isEmpty() && !loading) item {
+                    // Empty state like the sync sheet's: an icon over one centred line.
+                    Column(Modifier.fillMaxWidth().padding(vertical = 48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Filled.DeleteOutline, null, Modifier.size(40.dp), tint = p.text3)
+                        Text("Recycle bin is empty", style = MaterialTheme.typography.titleMedium, color = p.text2)
+                    }
+                }
                 items(entries, key = { it.id }) { e ->
                     val waiting = e.id in localIds
-                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "${TopicCatalog.groupTitle(e.group)} · ${e.topicName ?: names["${e.group}/${e.topic}"] ?: TopicCatalog.prettify(e.topic)}",
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,

@@ -1,5 +1,6 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.foundation.border
 import com.syed.slate.ui.component.SlateDropdown
 import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.layout.Arrangement
@@ -196,10 +197,7 @@ fun StudyScreen(
         ) {
             item {
                 androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        query, { query = it; page = 0 }, Modifier.fillMaxWidth(), singleLine = true,
-                        leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Search in this topic") },
-                    )
+                    com.syed.slate.ui.component.SlateSearchField(query, { query = it; page = 0 }, "Search in this topic")
                     SlateDropdown(StudyFilter.entries.map { f -> DropOption(f, f.label, counts[f] ?: 0) }, filter, { filter = it; page = 0 })
                     Text("${visible.size} of ${scoped.size} questions", style = MaterialTheme.typography.labelMedium, color = LocalPalette.current.text3)
                 }
@@ -213,8 +211,8 @@ fun StudyScreen(
             if (showPicker) {
                 items(subtopicCards, key = { it.first.slug }) { (sub, n) ->
                     Row(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(LocalPalette.current.surface)
-                            .clickable { activeSub = sub.slug; page = 0 }.padding(horizontal = 18.dp, vertical = 16.dp),
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(LocalPalette.current.surface)
+                            .border(1.dp, LocalPalette.current.outline, MaterialTheme.shapes.large).clickable { activeSub = sub.slug; page = 0 }.padding(horizontal = 18.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(sub.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)

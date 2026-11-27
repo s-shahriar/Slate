@@ -69,6 +69,7 @@ object TopicCatalog {
         "bangla" to "Bangla Grammar", "english" to "English Grammar", "sahitya" to "Bangla Sahitya",
         "gk" to "GK", "livemcq" to "LiveMCQ", "vocab" to "Vocabulary",
         "mcq" to "MCQ", "written" to "Written", "extra" to "Extra", "viva" to "Viva",
+        "wgk" to "GK", "wfin" to "Financial",
     )
     private val groupOrder = mapOf(
         ModuleId.GENERAL to listOf("bangla", "english", "sahitya", "gk", "livemcq", "vocab"),
