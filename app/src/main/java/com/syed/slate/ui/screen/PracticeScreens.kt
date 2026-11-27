@@ -1,5 +1,6 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.ui.layout.onSizeChanged
 import com.syed.slate.ui.component.SlateDropdown
 import com.syed.slate.ui.component.DropOption
 import androidx.compose.foundation.BorderStroke
@@ -29,9 +30,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -145,25 +143,15 @@ private fun PracticeTabs(current: Int, onSelect: (Int) -> Unit) {
 @Composable
 private fun TopicDropdown(cat: Category, current: Topic, modifier: Modifier, onSelect: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
+    var width by remember { mutableStateOf(0) }
     val groups = cat.topics.groupBy { it.set.orEmpty() }
-    ExposedDropdownMenuBox(open, { open = it }, modifier) {
-        OutlinedTextField(
-            (current.set?.let { "SET $it · " }.orEmpty()) + current.name, {}, Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            readOnly = true, singleLine = true, colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedContainerColor = LocalPalette.current.surface, unfocusedContainerColor = LocalPalette.current.surface, unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = .5f), focusedBorderColor = MaterialTheme.colorScheme.primary), trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
-        )
-        ExposedDropdownMenu(open, { open = false }) {
+    Box(modifier.onSizeChanged { width = it.width }) {
+        com.syed.slate.ui.component.SlateDropTrigger((current.set?.let { "SET $it · " }.orEmpty()) + current.name, { open = true })
+        com.syed.slate.ui.component.SlateMenu(open, { open = false }, minWidthPx = width) {
             groups.forEach { (set, topics) ->
-                if (set.isNotEmpty()) Text("SET $set", Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, color = LocalPalette.current.text3)
-                topics.forEach { t ->
-                    // Mark where you are: web parity with `.practice-dd-item.active` — accent, bold, a tick.
-                    val on = t.id == current.id
-                    DropdownMenuItem(
-                        { Text(t.name, color = if (on) MaterialTheme.colorScheme.primary else LocalPalette.current.text2, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium) },
-                        { onSelect(t.id); open = false },
-                        trailingIcon = { if (on) Icon(Icons.Filled.Check, "নির্বাচিত", tint = MaterialTheme.colorScheme.primary) },
-                        modifier = if (on) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = .10f)) else Modifier,
-                    )
-                }
+                if (set.isNotEmpty()) com.syed.slate.ui.component.SlateMenuHeader("SET $set")
+                // Mark where you are: web parity with `.practice-dd-item.active` — accent, bold, a tick.
+                topics.forEach { t -> com.syed.slate.ui.component.SlateMenuItem(t.name, t.id == current.id, { onSelect(t.id); open = false }) }
             }
         }
     }

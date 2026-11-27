@@ -167,6 +167,24 @@ function tagFocus(article, gid, hash) {
     e.preventDefault(); e.stopPropagation();
     window.Slate.onSection('topic:' + a.getAttribute('data-topic'));
   }, true);
+  // The section dropdown (FocusScreens.kt jumpSelect): open/close, pick = jump + mark it current; a tap outside closes.
+  // vh is 0 in this WebView (it is measured before the view has a height), so size the list in px on open.
+  window.fcDD = function (btn) {
+    var dd = btn.parentElement, list = dd.querySelector('.fc-dd-list');
+    var below = window.innerHeight - btn.getBoundingClientRect().bottom - 16;
+    list.style.maxHeight = Math.max(260, Math.min(480, below)) + 'px';
+    dd.classList.toggle('open');
+  };
+  window.fcPick = function (item, id) {
+    var dd = item.closest('.fc-dd');
+    dd.classList.remove('open'); dd.classList.add('picked');
+    dd.querySelector('.fc-dd-label').textContent = item.textContent;
+    dd.querySelectorAll('.fc-dd-item').forEach(function (x) { x.classList.toggle('on', x === item); });
+    if (window.scrollToId) window.scrollToId(id);
+  };
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.fc-dd.open').forEach(function (dd) { if (!dd.contains(e.target)) dd.classList.remove('open'); });
+  }, true);
   var base = window.setImportantOnly;
   window.setImportantOnly = function (on) { if (base) base(on); article.classList.toggle('fc-imp-only', !!on); };
 })();

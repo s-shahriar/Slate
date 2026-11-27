@@ -1,5 +1,13 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -78,38 +86,57 @@ fun SettingsScreen(vm: SlateViewModel, activity: Activity, onBack: () -> Unit) {
             Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Theme and hand together: two short labelled rows instead of two cards.
+            // The Written look: a spaced heading with a hairline over each card; cards are surface + outline.
+            SettingsLabel("Appearance")
             Card {
                 SettingRow("Theme") {
-                    ThemeMode.entries.forEach { mode ->
-                        FilterChip(vm.themeMode == mode, { vm.setTheme(mode) }, { Text(mode.name.lowercase().replaceFirstChar(Char::uppercase)) })
-                    }
+                    Segmented(ThemeMode.entries.map { it.name.lowercase().replaceFirstChar(Char::uppercase) }, ThemeMode.entries.indexOf(vm.themeMode)) { vm.setTheme(ThemeMode.entries[it]) }
                 }
-                SettingRow("Hand", hint = "Mirrors bars and buttons to your thumb") {
-                    FilterChip(!vm.leftHand, { vm.chooseLeftHand(false) }, { Text("Right") })
-                    FilterChip(vm.leftHand, { vm.chooseLeftHand(true) }, { Text("Left") })
+                SettingRow("Hand") {
+                    Segmented(listOf("Right", "Left"), if (vm.leftHand) 1 else 0) { vm.chooseLeftHand(it == 1) }
                 }
             }
+            SettingsLabel("Content & sync")
             ModuleId.entries.forEach { id -> ModuleCard(vm, activity, id) }
+            SettingsLabel("Updates")
             UpdateCard(vm, showWhenIdle = true)
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, content: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        content()
+    }
+}
+
+/** One connected pill of options (the current one filled in the accent), instead of loose chips. */
+@Composable
+private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val p = LocalPalette.current
+    val accent = MaterialTheme.colorScheme.primary
+    Row(Modifier.clip(CircleShape).background(p.bg).border(1.dp, p.outline, CircleShape).padding(3.dp)) {
+        options.forEachIndexed { i, label ->
+            val on = i == selected
             Text(
-                "Slate ${BuildConfig.VERSION_NAME} · General and ICT quizzes in one place, working offline.",
-                Modifier.fillMaxWidth().padding(vertical = 4.dp), style = MaterialTheme.typography.bodySmall,
-                color = LocalPalette.current.text3, textAlign = TextAlign.Center,
+                label, Modifier.clip(CircleShape).background(if (on) accent else Color.Transparent).clickable { onSelect(i) }.padding(horizontal = 14.dp, vertical = 7.dp),
+                style = MaterialTheme.typography.labelLarge, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                color = if (on) MaterialTheme.colorScheme.onPrimary else p.text2,
             )
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** A settings section heading: small spaced capitals and a hairline (the launcher's section labels). */
 @Composable
-private fun SettingRow(label: String, hint: String? = null, content: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.titleSmall)
-            hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = LocalPalette.current.text3) }
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End)) { content() }
+private fun SettingsLabel(text: String) {
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = p.text3,
+            letterSpacing = androidx.compose.ui.unit.TextUnit(1.4f, androidx.compose.ui.unit.TextUnitType.Sp))
+        Box(Modifier.weight(1f).height(1.dp).background(p.outline))
     }
 }
 
@@ -133,10 +160,10 @@ private fun ModuleCard(vm: SlateViewModel, activity: Activity, id: ModuleId) {
     Card {
         // Header: module, and one status chip that says whether your changes are safe on the server.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                Icon(if (id == ModuleId.GENERAL) Icons.AutoMirrored.Filled.MenuBook else Icons.Filled.Bolt, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onPrimary)
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                Icon(if (id == ModuleId.GENERAL) Icons.AutoMirrored.Filled.MenuBook else Icons.Filled.Bolt, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onPrimary)
             }
-            Text(id.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(id.title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             when {
                 session == null && waiting > 0 -> StatusChip("$waiting not synced", p.warn)
                 waiting > 0 && !online -> StatusChip("$waiting waiting · offline", p.warn)
@@ -145,32 +172,26 @@ private fun ModuleCard(vm: SlateViewModel, activity: Activity, id: ModuleId) {
             }
         }
 
-        // The offline copy at a glance.
+        // The offline copy in one quiet line; what the last refresh brought in under it.
         if (ready != null) {
             val total = remember(ready) { m.imageUrls(ready).size }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Stat("Questions", "${ready.total}", Modifier.weight(1f))
-                Stat("Size", formatBytes(m.content.cacheBytes), Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Stat("Pictures", if (total > 0) "${minOf(saved, total)} / $total" else "—", Modifier.weight(1f))
-                Stat("Updated", formatShortDate(m.content.cachedAt), Modifier.weight(1f))
-            }
+            Text(
+                listOfNotNull("${ready.total} questions", formatBytes(m.content.cacheBytes), if (total > 0) "${minOf(saved, total)}/$total pictures" else null).joinToString("  ·  "),
+                style = MaterialTheme.typography.bodyMedium, color = p.text2,
+            )
         } else {
             Text(if (state is ContentState.Empty) "Not downloaded yet." else "Loading…", style = MaterialTheme.typography.bodyMedium, color = p.text3)
         }
-
-        // What the last refresh brought in (also announced right after it finishes).
-        when (val s = sync) {
+        when (val sy = sync) {
             is SyncState.Running -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SlateLinearLoader(Modifier.fillMaxWidth())
-                Text(s.message, style = MaterialTheme.typography.labelMedium, color = p.text3)
+                Text(sy.message, style = MaterialTheme.typography.labelMedium, color = p.text3)
             }
-            is SyncState.Failed -> Text("Refresh failed · ${s.message}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            is SyncState.Failed -> Text("Refresh failed · ${sy.message}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             SyncState.Idle -> last?.let { r ->
                 val d = r.delta
                 val what = when {
-                    r.firstDownload -> "first download, ${d.added} questions"
+                    r.firstDownload -> "first download"
                     d.isEmpty -> "nothing new"
                     else -> listOfNotNull(
                         d.added.takeIf { it > 0 }?.let { "$it new" },
@@ -178,40 +199,44 @@ private fun ModuleCard(vm: SlateViewModel, activity: Activity, id: ModuleId) {
                         d.removed.takeIf { it > 0 }?.let { "$it removed" },
                     ).joinToString(", ")
                 }
-                Text("Last refresh ${formatShortDate(r.at)} · $what", style = MaterialTheme.typography.bodySmall, color = if (d.added > 0 && !r.firstDownload) p.ok else p.text3)
-            }
+                Text("Updated ${formatShortDate(r.at)} · $what", style = MaterialTheme.typography.bodySmall, color = p.text3)
+            } ?: if (ready != null) Text("Updated ${formatShortDate(m.content.cachedAt)}", style = MaterialTheme.typography.bodySmall, color = p.text3) else Unit
         }
 
+        // Two quiet actions on one line.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { vm.refreshContent(id) }, enabled = online && sync !is SyncState.Running) {
+            FilledTonalButton(onClick = { vm.refreshContent(id) }, enabled = online && sync !is SyncState.Running, contentPadding = PaddingValues(horizontal = 16.dp)) {
                 Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text(if (ready != null) "Refresh" else "Download")
+                Text(if (!online) "Offline" else if (ready != null) "Refresh" else "Download")
             }
-            if (ready != null) TextButton(onClick = { confirmRemove = true }) { Text("Remove copy") }
-            if (!online) Text("Offline", style = MaterialTheme.typography.labelMedium, color = p.warn)
+            if (ready != null) TextButton(onClick = { confirmRemove = true }) { Text("Remove copy", color = p.text3) }
         }
 
-        HorizontalDivider(color = p.outline)
-
-        // Account: who is signed in, the pools this account is building, and sign in / out.
-        val s = session
-        if (s == null) {
-            Text("Sign in to keep Nailed / Important / Weak on every device.", style = MaterialTheme.typography.bodySmall, color = p.text3)
+        // Account: one line — who is signed in, their counts, sign in / out.
+        val acct = session
+        if (acct == null) {
             if (m.config.googleWebClientId.isBlank()) {
                 Text("Google sign-in isn't configured yet (set GOOGLE_WEB_CLIENT_ID_${id.name} in local.properties).", style = MaterialTheme.typography.bodySmall, color = p.warn)
             }
-            OutlinedButton(onClick = { vm.signIn(activity, id) }, enabled = online && m.config.googleWebClientId.isNotBlank()) { Text("Sign in with Google") }
+            OutlinedButton(onClick = { vm.signIn(activity, id) }, Modifier.fillMaxWidth(), enabled = online && m.config.googleWebClientId.isNotBlank()) { Text("Sign in with Google") }
         } else {
             val flags by m.progress.flags.collectAsState()
             val totals = remember(flags) { Triple(flags.values.count { it.nailed }, flags.values.count { it.important }, flags.values.count { it.weak }) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(s.email ?: "Signed in", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TextButton(onClick = { vm.signOut(id) }) { Text("Sign out") }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                CountPill("Nailed", totals.first, p.ok)
-                CountPill("Important", totals.second, p.imp)
-                CountPill("Weak", totals.third, p.warn)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.bg).padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(acct.email ?: "Signed in", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            fun part(n: Int, label: String, c: Color) {
+                                withStyle(androidx.compose.ui.text.SpanStyle(color = c, fontWeight = FontWeight.Bold)) { append("$n") }
+                                append(" $label")
+                            }
+                            part(totals.first, "nailed", p.ok); append("  ·  "); part(totals.second, "important", p.imp); append("  ·  "); part(totals.third, "weak", p.warn)
+                        },
+                        style = MaterialTheme.typography.labelMedium, color = p.text3,
+                    )
+                }
+                TextButton(onClick = { vm.signOut(id) }) { Text("Sign out", color = p.text3) }
             }
         }
         vm.authError?.takeIf { it.startsWith(id.title) }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
@@ -226,14 +251,6 @@ private fun ModuleCard(vm: SlateViewModel, activity: Activity, id: ModuleId) {
     )
 }
 
-@Composable
-private fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
-    val p = LocalPalette.current
-    Column(modifier.clip(MaterialTheme.shapes.small).background(p.elevated).padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = p.text3)
-        Text(value, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
 
 @Composable
 private fun StatusChip(text: String, color: Color) {
@@ -243,16 +260,6 @@ private fun StatusChip(text: String, color: Color) {
     )
 }
 
-@Composable
-private fun CountPill(label: String, n: Int, color: Color) {
-    Row(
-        Modifier.clip(CircleShape).background(color.copy(alpha = .12f)).padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text("$n", style = MaterialTheme.typography.labelLarge, color = color)
-        Text(label, style = MaterialTheme.typography.labelMedium, color = LocalPalette.current.text2)
-    }
-}
 
 /** "Oct 8, 4:51 PM" — the year only when it isn't this year. */
 private fun formatShortDate(ms: Long): String {
@@ -265,7 +272,8 @@ private fun formatShortDate(ms: Long): String {
 @Composable
 private fun Card(content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(LocalPalette.current.surface).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(LocalPalette.current.surface)
+            .border(1.dp, LocalPalette.current.outline, RoundedCornerShape(20.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) { content() }
 }

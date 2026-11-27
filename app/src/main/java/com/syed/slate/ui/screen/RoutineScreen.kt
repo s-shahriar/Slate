@@ -737,23 +737,11 @@ private fun TopicPicker(
     var q by remember { mutableStateOf("") }
     var width by remember { mutableStateOf(0) }
     Box(modifier.onSizeChanged { width = it.width }) {
-        Surface(
-            onClick = { q = ""; open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-            shape = RoundedCornerShape(14.dp), color = p.surface, border = BorderStroke(1.dp, p.outline),
-        ) {
-            Row(Modifier.padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    when { value.isEmpty() -> "Choose a topic…"; known -> value; else -> "$value (not in the list)" }, Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium, fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.Bold,
-                    color = if (value.isEmpty()) p.text3 else p.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-                Icon(Icons.Filled.ExpandMore, "Choose", tint = p.text3)
-            }
-        }
-        DropdownMenu(
-            expanded = open, onDismissRequest = { open = false },
-            modifier = Modifier.widthIn(min = with(LocalDensity.current) { width.toDp() }).heightIn(max = 440.dp).background(p.surface),
-        ) {
+        com.syed.slate.ui.component.SlateDropTrigger(
+            when { value.isEmpty() -> "Choose a topic…"; known -> value; else -> "$value (not in the list)" },
+            { q = ""; open = true }, placeholder = value.isEmpty(), minHeight = 50.dp,
+        )
+        com.syed.slate.ui.component.SlateMenu(open, { open = false }, minWidthPx = width, maxHeight = 440.dp) {
             OutlinedTextField(
                 q, { q = it }, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), placeholder = { Text("Search topics…") },
                 leadingIcon = { Icon(Icons.Filled.Search, null, tint = p.text3) }, singleLine = true, shape = RoundedCornerShape(12.dp),
@@ -764,23 +752,12 @@ private fun TopicPicker(
             val exact = topics.any { it.label.equals(needle, ignoreCase = true) }
             if (shown.isEmpty()) Text("No topic matches “$needle”.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodySmall, color = p.text3)
             shown.forEach { t ->
-                val on = t.label == value
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(t.label, Modifier.weight(1f, fill = false), fontWeight = if (on) FontWeight.Bold else FontWeight.Normal, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            TempTag(t)
-                        }
-                    },
-                    trailingIcon = { if (on) Icon(Icons.Filled.Check, null, tint = p.primary) else Spacer(Modifier.size(24.dp)) },
-                    onClick = { open = false; onPick(t.label) },
-                )
+                com.syed.slate.ui.component.SlateMenuItem(t.label, t.label == value, { open = false; onPick(t.label) }, trailing = { TempTag(t) })
             }
             HorizontalDivider(color = p.outline)
-            DropdownMenuItem(
-                text = { Text(if (needle.isNotEmpty() && !exact) "New topic “$needle”" else "New topic…", color = p.primary, fontWeight = FontWeight.Bold) },
-                leadingIcon = { Icon(Icons.Filled.Add, null, tint = p.primary) },
-                onClick = { open = false; onNew(if (exact) "" else needle) },
+            com.syed.slate.ui.component.SlateMenuItem(
+                if (needle.isNotEmpty() && !exact) "New topic “$needle”" else "New topic…", false, { open = false; onNew(if (exact) "" else needle) },
+                leading = { Icon(Icons.Filled.Add, null, tint = p.primary) },
             )
         }
     }

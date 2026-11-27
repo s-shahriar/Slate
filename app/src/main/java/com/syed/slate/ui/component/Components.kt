@@ -46,14 +46,16 @@ fun UpdateCard(vm: SlateViewModel, showWhenIdle: Boolean, modifier: Modifier = M
     if (s is UpdateState.Idle && !showWhenIdle) return
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        shape = MaterialTheme.shapes.medium,
+        // The Written look (surface + hairline), like the cards around it, not a coloured block.
+        colors = CardDefaults.cardColors(containerColor = com.syed.slate.ui.theme.LocalPalette.current.surface),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, com.syed.slate.ui.theme.LocalPalette.current.outline),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val ink = MaterialTheme.colorScheme.onPrimaryContainer
+            val ink = MaterialTheme.colorScheme.onSurface
             when (s) {
-                UpdateState.Idle -> {
-                    Text("Updates", style = MaterialTheme.typography.titleMedium, color = ink)
+                UpdateState.Idle -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Slate ${com.syed.slate.BuildConfig.VERSION_NAME}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = ink)
                     Button(onClick = vm::checkForUpdate) { Text("Check for updates") }
                 }
                 UpdateState.Checking -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

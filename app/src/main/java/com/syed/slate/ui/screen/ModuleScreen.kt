@@ -294,33 +294,12 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
     LazyColumn(state = list, contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // The section's hero: the sub-module card's icon coin, its name and size.
         if (!inUtility && !inWritten) item(key = "section-hero") {
-            val sectionCount = content.groups.firstOrNull { g -> g.key == section }?.count
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                    Icon(sectionIcon(id, section), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                }
-                Column {
-                    Text(subModuleTitle(id, section), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        if (inSql) sqlTopics.sumOf { it.queries }.let { n -> "$n queries" } else sectionCount?.let { "$it questions" }.orEmpty(),
-                        style = MaterialTheme.typography.labelMedium, color = p.text3,
-                    )
-                }
-            }
+            // Every section opens with the Written-style title block: a rounded-square icon and the bold name.
+            SectionHero(sectionIcon(id, section), subModuleTitle(id, section))
         }
         if (inWritten) {
             // Written's own Nailed / Important (Focus, GK, Financial blocks), apart from the MCQ modules'.
-            item(key = "written-hero") {
-                // The section's own title block, like the web's Written home: icon coin, name, one line on what is inside.
-                Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.EditNote, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Column {
-                        Text("Written", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            item(key = "written-hero") { SectionHero(Icons.Filled.EditNote, "Written") }
             item(key = "written-actions") {
                 // Focus blocks (index) + the GK / Financial questions.
                 val wq = remember(content) { content.allItems().filter { it.group == "wgk" || it.group == "wfin" }.mapNotNull { it.uid }.toList() }
@@ -346,14 +325,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
         } else if (inUtility) {
             // Same look as the Written page: a title block, then theme cards (icon coin, name, chevron).
-            item(key = "utility-hero") {
-                Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                        Icon(sectionIcon(id, UTILITY), null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Text("Utility", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                }
-            }
+            item(key = "utility-hero") { SectionHero(sectionIcon(id, UTILITY), "Utility") }
             item(key = "tool-math") { WrittenEntry(Icons.Filled.Calculate, 4, "গণিত সূত্র", "", nav.onMath) }
             item(key = "tool-english") { WrittenEntry(Icons.Filled.Translate, 9, "English Grammar", "", nav.onEnglish) }
         } else if (inPractice) {
@@ -361,7 +333,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val saved = practiceFlags.values.count { it.important }
                     val weak = practiceFlags.values.count { it.important && it.weak }
-                    Action(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onPracticeImportant() }
+                    SavedTile(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onPracticeImportant() }
                     Column(
                         Modifier.weight(1f).clip(MaterialTheme.shapes.medium).background(p.warn.copy(alpha = .12f))
                             .border(1.dp, p.warn.copy(alpha = .35f), MaterialTheme.shapes.medium).padding(14.dp),
@@ -377,7 +349,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             }
             items(practiceCats, key = { it.id }) { c ->
                 Row(
-                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onPractice(c.id) }.padding(horizontal = 18.dp, vertical = 16.dp),
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large).clickable { nav.onPractice(c.id) }.padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -413,7 +385,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                     }
                     items(shown, key = { "sql-${t.id}-${it.id}" }) { l ->
                         Row(
-                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onSql(l.id) }
+                            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large).clickable { nav.onSql(l.id) }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
@@ -434,12 +406,12 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
             item(key = "equation-actions") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val saved = flags.count { it.key.startsWith("equation:") && it.value.important }
-                    Action(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onEquationImportant() }
+                    SavedTile(Icons.Filled.Bookmark, "Important", saved, p.imp, Modifier.weight(1f)) { nav.onEquationImportant() }
                 }
             }
             items(equationTopics, key = { it.id }) { t ->
                 Row(
-                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface).clickable { nav.onEquation(t.id) }.padding(horizontal = 18.dp, vertical = 16.dp),
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large).clickable { nav.onEquation(t.id) }.padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -455,9 +427,9 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 HandMirror {  // like the web's .study-card-actions: the order flips with the hand
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         // Exams draw multiple-choice questions only; Written/Extra/Viva have none.
-                        if (!LongForm.isLongForm(group!!.key)) Action(Icons.Filled.Timer, "Exam", null, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) { nav.onExam(group.key) }
-                        Action(Icons.Filled.Star, "Nailed", counts.getValue(PoolSet.NAILED), p.ok, Modifier.weight(1f)) { nav.onSaved(PoolSet.NAILED, group.key) }
-                        Action(Icons.Filled.Bookmark, "Important", counts.getValue(PoolSet.IMPORTANT), p.imp, Modifier.weight(1f)) { nav.onSaved(PoolSet.IMPORTANT, group.key) }
+                        if (!LongForm.isLongForm(group!!.key)) SavedTile(Icons.Filled.Timer, "Exam", null, MaterialTheme.colorScheme.primary, Modifier.weight(1f), value = "Start") { nav.onExam(group.key) }
+                        SavedTile(Icons.Filled.Star, "Nailed It", counts.getValue(PoolSet.NAILED), p.ok, Modifier.weight(1f)) { nav.onSaved(PoolSet.NAILED, group.key) }
+                        SavedTile(Icons.Filled.Bookmark, "Important", counts.getValue(PoolSet.IMPORTANT), p.imp, Modifier.weight(1f)) { nav.onSaved(PoolSet.IMPORTANT, group.key) }
                     }
                 }
             }
@@ -496,7 +468,7 @@ private fun ModuleBody(id: ModuleId, content: ModuleContent, flags: Map<String, 
                 }
                 items(group?.topics.orEmpty(), key = { it.key }) { t ->
                     Row(
-                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).background(p.surface)
+                        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(p.surface).border(1.dp, p.outline, MaterialTheme.shapes.large)
                             .clickable { nav.onTopic(t.group, t.slug) }.padding(horizontal = 18.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -544,65 +516,102 @@ private fun subModuleTagline(id: ModuleId, key: String): String? = when (key) {
     else -> null
 }
 
-/** Magpie's module grid, one level down: every sub-module of General / ICT as a card (icon coin, name, blurb). */
+/**
+ * The module launcher. General follows the web's top nav: the four quiz subjects as a 2×2 grid under "General", then
+ * LiveMCQ, Vocabulary, Written, Utility and Routine each as their own labelled section (one wide card). ICT keeps the
+ * plain grid of cards (icon coin, name, count).
+ */
 @Composable
 private fun SubModuleLauncher(id: ModuleId, content: ModuleContent, onOpen: (String) -> Unit) {
-    val p = LocalPalette.current
     val groupKeys = content.groups.map { it.key }
-    val keys: List<String> = if (id == ModuleId.GENERAL) {
-        listOf("bangla", "english", "sahitya", "gk", "livemcq").filter { groupKeys.contains(it) } +
-            (if (groupKeys.contains("vocab")) listOf("vocab") else emptyList()) + listOf(WRITTEN, UTILITY, ROUTINE)
-    } else {
-        listOf("mcq", "written", "extra", "viva").filter { groupKeys.contains(it) } + listOf(EQUATION, PRACTICE, SQL, ROUTINE)
-    }
+    val count = { key: String -> content.groups.firstOrNull { it.key == key }?.count }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        keys.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                row.forEach { key ->
-                    val count = content.groups.firstOrNull { it.key == key }?.count
-                    Surface(
-                        onClick = { onOpen(key) }, modifier = Modifier.weight(1f).height(168.dp),
-                        shape = RoundedCornerShape(28.dp), color = p.surface, border = BorderStroke(1.dp, p.outline),
-                    ) {
-                        Column(Modifier.padding(18.dp)) {
-                            Box(Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                                Icon(sectionIcon(id, key), null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimary)
-                            }
-                            Spacer(Modifier.weight(1f))
-                            Text(subModuleTitle(id, key), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                count?.let { "$it questions" }.orEmpty(),
-                                style = MaterialTheme.typography.labelMedium, color = p.text3, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
+        if (id == ModuleId.GENERAL) {
+            LauncherLabel("General")
+            CardGrid(id, listOf("bangla", "english", "sahitya", "gk").filter { it in groupKeys }, count, onOpen)
+            listOf("livemcq" to "LiveMCQ", "vocab" to "Vocabulary", WRITTEN to "Written", UTILITY to "Utility", ROUTINE to "Routine")
+                .filter { (k, _) -> k !in listOf("livemcq", "vocab") || k in groupKeys }
+                .forEach { (key, label) ->
+                    LauncherLabel(label, top = 10.dp)
+                    WideCard(id, key, count(key), onOpen)
                 }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
-            }
+        } else {
+            CardGrid(id, listOf("mcq", "written", "extra", "viva").filter { it in groupKeys } + listOf(EQUATION, PRACTICE, SQL, ROUTINE), count, onOpen)
         }
         Spacer(Modifier.height(12.dp))
     }
 }
 
+/** A section's title block (the Written look, used by every section): rounded-square accent icon + bold name. */
 @Composable
-private fun Action(icon: ImageVector, label: String, count: Int?, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier.clip(MaterialTheme.shapes.medium).background(LocalPalette.current.surface).clickable(onClick = onClick).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            Icon(icon, null, Modifier.size(16.dp), tint = color)
-            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
+private fun SectionHero(icon: ImageVector, title: String) {
+    Row(Modifier.padding(top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimary)
         }
-        Text(count?.toString() ?: "Start", style = MaterialTheme.typography.titleLarge, color = if (count == null) color else Color.Unspecified)
+        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     }
 }
+
+/** A launcher section heading: small spaced capitals with a hairline, like the web's section labels. */
+@Composable
+private fun LauncherLabel(text: String, top: androidx.compose.ui.unit.Dp = 0.dp) {
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().padding(top = top, start = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = p.text3, letterSpacing = androidx.compose.ui.unit.TextUnit(1.4f, androidx.compose.ui.unit.TextUnitType.Sp))
+        Box(Modifier.weight(1f).height(1.dp).background(p.outline))
+    }
+}
+
+@Composable
+private fun CardGrid(id: ModuleId, keys: List<String>, count: (String) -> Int?, onOpen: (String) -> Unit) {
+    val p = LocalPalette.current
+    keys.chunked(2).forEach { row ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            row.forEach { key ->
+                Surface(
+                    onClick = { onOpen(key) }, modifier = Modifier.weight(1f).height(156.dp),
+                    shape = RoundedCornerShape(28.dp), color = p.surface, border = BorderStroke(1.dp, p.outline),
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Box(Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                            Icon(sectionIcon(id, key), null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(subModuleTitle(id, key), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        count(key)?.let { Text("$it questions", style = MaterialTheme.typography.labelMedium, color = p.text3, maxLines = 1) }
+                    }
+                }
+            }
+            if (row.size == 1) Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+/** One full-width section card: icon coin, name, question count, chevron. */
+@Composable
+private fun WideCard(id: ModuleId, key: String, count: Int?, onOpen: (String) -> Unit) {
+    val p = LocalPalette.current
+    Surface(onClick = { onOpen(key) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), color = p.surface, border = BorderStroke(1.dp, p.outline)) {
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
+                Icon(sectionIcon(id, key), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onPrimary)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(subModuleTitle(id, key), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                count?.let { Text("$it questions", style = MaterialTheme.typography.labelMedium, color = p.text3) }
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = p.text3)
+        }
+    }
+}
+
 
 private fun bnN(n: Int) = n.toString().map { if (it.isDigit()) "০১২৩৪৫৬৭৮৯"[it - '0'] else it }.joinToString("")
 
 /** Written's Nailed / Important tile: tinted in its colour, icon coin, big count, "saved · দেখো ›" footer (the web's action cards). */
 @Composable
-private fun SavedTile(icon: ImageVector, label: String, count: Int, color: Color, modifier: Modifier, onClick: () -> Unit) {
+private fun SavedTile(icon: ImageVector, label: String, count: Int?, color: Color, modifier: Modifier, value: String? = null, onClick: () -> Unit) {
     val p = LocalPalette.current
     Column(
         // Theme surface and outline like the entry cards below; only the icon carries the Nailed / Important colour.
@@ -613,13 +622,17 @@ private fun SavedTile(icon: ImageVector, label: String, count: Int, color: Color
         Box(Modifier.size(38.dp).clip(CircleShape).background(color.copy(alpha = .15f)), contentAlignment = Alignment.Center) {
             Icon(icon, null, Modifier.size(20.dp), tint = color)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            Text(count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.titleSmall)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("দেখো", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = p.text3)
+        Column {
+            // A word ("Start") is set smaller than a count, in a box of the count's height so the labels stay level.
+            Box(Modifier.height(with(androidx.compose.ui.platform.LocalDensity.current) { MaterialTheme.typography.headlineMedium.lineHeight.toDp() }), contentAlignment = Alignment.CenterStart) {
+                Text(value ?: count?.toString().orEmpty(),
+                    style = if (value != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, color = if (value != null) color else androidx.compose.ui.graphics.Color.Unspecified, maxLines = 1)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(18.dp), tint = p.text3)
+            }
         }
     }
 }

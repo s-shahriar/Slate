@@ -1,5 +1,6 @@
 package com.syed.slate.ui.screen
 
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -105,28 +106,15 @@ internal fun StyledSelect(
         empty && !optional && allLabel == null && placeholder != null -> p.warn
         else -> p.outline
     }
-    Box(modifier) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).background(p.elevated)
-                .border(BorderStroke(if (invalid) 1.5.dp else 1.dp, edge), RoundedCornerShape(12.dp))
-                .clickable(enabled = enabled) { open = true }.padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                color = if (empty && allLabel == null) p.text3 else p.text,
-                fontWeight = if (empty) null else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-            Icon(Icons.Filled.ExpandMore, null, Modifier.size(18.dp), tint = p.text3)
-        }
-        DropdownMenu(open, { open = false }) {
-            if (allLabel != null) DropdownMenuItem({ Text(allLabel) }, { onChange(""); open = false })
-            options.forEach { (v, name) ->
-                DropdownMenuItem(
-                    { Text(name, fontWeight = if (v == value) FontWeight.Bold else null) },
-                    { onChange(v); open = false },
-                )
-            }
+    var width by remember { mutableStateOf(0) }
+    Box(modifier.onSizeChanged { width = it.width }) {
+        com.syed.slate.ui.component.SlateDropTrigger(
+            label, { open = true }, placeholder = empty && allLabel == null, enabled = enabled, minHeight = 44.dp,
+            borderColor = if (invalid || (empty && !optional && allLabel == null && placeholder != null)) edge else null,
+        )
+        com.syed.slate.ui.component.SlateMenu(open, { open = false }, minWidthPx = width) {
+            if (allLabel != null) com.syed.slate.ui.component.SlateMenuItem(allLabel, value.isEmpty(), { onChange(""); open = false })
+            options.forEach { (v, name) -> com.syed.slate.ui.component.SlateMenuItem(name, v == value, { onChange(v); open = false }) }
         }
     }
 }
@@ -258,10 +246,8 @@ internal fun ChipSelect(
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
         Chip(label, fg, bg, icon = icon, trailing = Icons.Filled.ExpandMore, onClick = if (enabled) ({ open = true }) else null)
-        DropdownMenu(open, { open = false }) {
-            options.forEach { (v, name) ->
-                DropdownMenuItem({ Text(name, fontWeight = if (v == value) FontWeight.Bold else null) }, { onChange(v); open = false })
-            }
+        com.syed.slate.ui.component.SlateMenu(open, { open = false }) {
+            options.forEach { (v, name) -> com.syed.slate.ui.component.SlateMenuItem(name, v == value, { onChange(v); open = false }) }
         }
     }
 }

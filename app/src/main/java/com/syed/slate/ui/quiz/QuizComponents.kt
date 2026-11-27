@@ -1,5 +1,6 @@
 package com.syed.slate.ui.quiz
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -182,12 +183,11 @@ fun FlagBar(flag: Flag, uid: String, progress: ProgressRepository, modifier: Mod
                 if (rare.isNotEmpty()) Box {
                     var more by remember { mutableStateOf(false) }
                     IconFlagChip(Icons.Filled.MoreVert, "More actions", false, primary) { more = true }
-                    androidx.compose.material3.DropdownMenu(more, { more = false }, Modifier.background(p.surface)) {
+                    com.syed.slate.ui.component.SlateMenu(more, { more = false }, Modifier.widthIn(min = 200.dp)) {
                         rare.forEach { sp ->
-                            androidx.compose.material3.DropdownMenuItem(
-                                text = { Text(sp.label) },
-                                leadingIcon = { Icon(sp.icon, null, tint = if (sp.color == p.bad) p.bad else p.text2) },
-                                onClick = { more = false; sp.onClick() },
+                            com.syed.slate.ui.component.SlateMenuItem(
+                                sp.label, false, { more = false; sp.onClick() },
+                                leading = { Icon(sp.icon, null, Modifier.size(20.dp), tint = if (sp.color == p.bad) p.bad else p.text2) },
                             )
                         }
                     }

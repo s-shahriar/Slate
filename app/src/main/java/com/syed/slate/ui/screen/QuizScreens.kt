@@ -30,13 +30,10 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -260,15 +257,9 @@ private fun StepChip(enabled: Boolean, onClick: () -> Unit, content: @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Dropdown(label: String, options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(open, { open = it }) {
-        OutlinedTextField(
-            options.firstOrNull { it.first == selected }?.second.orEmpty(), {}, Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            readOnly = true, label = { Text(label) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
-        )
-        ExposedDropdownMenu(open, { open = false }) {
-            options.forEach { (k, v) -> DropdownMenuItem({ Text(v) }, { onSelect(k); open = false }) }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = LocalPalette.current.text3)
+        com.syed.slate.ui.component.SlateDropdown(options.map { (k, v) -> com.syed.slate.ui.component.DropOption(k, v) }, selected, onSelect)
     }
 }
 

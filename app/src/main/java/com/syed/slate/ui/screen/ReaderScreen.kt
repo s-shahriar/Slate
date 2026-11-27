@@ -238,6 +238,14 @@ fun ReaderScreen(
                     )
                 }
             }
+            // Written GK / Financial: previous / next topic at the foot (web parity: StudyMode's TopicPager).
+            if (short && content != null) item(key = "topic-pager") {
+                val ts = content.groups.firstOrNull { it.key == group }?.topics.orEmpty()
+                val at = ts.indexOfFirst { it.slug == topic }
+                com.syed.slate.ui.component.TopicPager(
+                    ts.getOrNull(at - 1)?.let { it.slug to it.name }, ts.getOrNull(at + 1)?.let { it.slug to it.name }, onSwitchTopic,
+                )
+            }
         }
             QuestionPeekBar(
                 question = peekState?.first?.item?.question?.takeIf { peekKey != hiddenPeek }, number = peekState?.first?.number,
